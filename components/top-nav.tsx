@@ -107,7 +107,7 @@ export function TopNav() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-studify-gray/20 bg-studify-white">
-      <div className="container flex h-16 items-center px-4">
+      <div className="flex h-16 items-center justify-between w-full px-4">
         <div className="flex items-center">
           <Link
             href="/dashboard"
@@ -117,9 +117,7 @@ export function TopNav() {
           </Link>
         </div>
 
-        <div className="flex-1"></div>
-
-        <div className="flex items-center gap-4 ml-auto">
+        <div className="flex items-center gap-4">
           {/* Botão de notificações */}
           <Button variant="ghost" size="icon" disabled={isLoggingOut}>
             <Bell className="h-5 w-5" />
