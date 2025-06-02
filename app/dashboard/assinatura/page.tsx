@@ -28,6 +28,7 @@ export default function AssinaturaPage() {
     priceId: string
     amount: string
   } | null>(null)
+  const [hasHadTrial, setHasHadTrial] = useState(false)
 
   // Buscar dados do usuário
   useEffect(() => {
@@ -82,6 +83,15 @@ export default function AssinaturaPage() {
           console.log("✅ Assinatura ativa encontrada:", subscription)
           setCurrentPlan(subscription.plan_type)
         }
+
+        // Verificar se o usuário já teve trial
+        const { data: trialHistory } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", authUser.id)
+          .limit(1)
+
+        setHasHadTrial(!!trialHistory && trialHistory.length > 0)
       } catch (error) {
         console.error("❌ Erro geral:", error)
       } finally {
@@ -135,7 +145,27 @@ export default function AssinaturaPage() {
       return
     }
 
-    // Obter informações do plano
+    // Se for trial, preparar para checkout com trial
+    if (!hasHadTrial) {
+      // Obter informações do plano mensal para o trial
+      const priceId = getPriceIdForPlan("monthly")
+      if (!priceId) {
+        toast.error("Erro ao obter informações do plano")
+        return
+      }
+
+      setSelectedPlan({
+        id: "trial",
+        name: "Trial 7 dias",
+        priceId: priceId,
+        amount: "R$ 0,00",
+      })
+
+      setShowCheckoutModal(true)
+      return
+    }
+
+    // Resto da lógica para planos pagos...
     const priceId = getPriceIdForPlan(planId)
     if (!priceId) {
       toast.error("Erro ao obter informações do plano")
@@ -157,6 +187,8 @@ export default function AssinaturaPage() {
   // Função para obter informações do plano
   const getPlanInfo = (planId: string) => {
     switch (planId) {
+      case "trial":
+        return { name: "Trial Semanal", amount: "R$ 0,00" }
       case "monthly":
         return { name: "Mensal", amount: "R$ 29,90" }
       case "quarterly":
@@ -258,12 +290,24 @@ export default function AssinaturaPage() {
 
   // Função para determinar o texto e estilo do botão
   const getButtonConfig = (planId: string) => {
+    // Se o usuário não é premium e nunca teve trial, mostrar opção de trial
+    if (!isPremium && !hasHadTrial) {
+      return {
+        text: "EXPERIMENTE POR R$ 0,00",
+        disabled: false,
+        variant: "trial",
+        icon: null,
+        isTrial: true,
+      }
+    }
+
     if (!isPremium) {
       return {
         text: "Assinar Agora",
         disabled: false,
         variant: planId === "quarterly" ? "studify" : "default",
         icon: null,
+        isTrial: false,
       }
     }
 
@@ -273,6 +317,7 @@ export default function AssinaturaPage() {
         disabled: true,
         variant: "secondary",
         icon: null,
+        isTrial: false,
       }
     }
 
@@ -287,6 +332,7 @@ export default function AssinaturaPage() {
         disabled: false,
         variant: planId === "quarterly" ? "studify" : "default",
         icon: <ArrowUp className="mr-2 h-4 w-4" />,
+        isTrial: false,
       }
     } else {
       return {
@@ -294,6 +340,7 @@ export default function AssinaturaPage() {
         disabled: false,
         variant: "outline",
         icon: <ArrowDown className="mr-2 h-4 w-4" />,
+        isTrial: false,
       }
     }
   }
@@ -308,6 +355,8 @@ export default function AssinaturaPage() {
 
   const getPlanName = (planType: string) => {
     switch (planType) {
+      case "trial":
+        return "Trial Semanal"
       case "monthly":
         return "Mensal"
       case "quarterly":
@@ -556,22 +605,24 @@ export default function AssinaturaPage() {
               const config = getButtonConfig("monthly")
               return (
                 <button
-                  className={`w-full py-2 px-4 rounded-md transition-colors disabled:opacity-50 ${
-                    config.variant === "studify"
-                      ? "bg-studify-green hover:bg-studify-green/90 text-white"
-                      : config.variant === "secondary"
-                        ? "bg-gray-200 text-gray-600 cursor-not-allowed"
-                        : config.variant === "outline"
-                          ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
-                          : "bg-gray-900 hover:bg-gray-800 text-white"
+                  className={`w-full py-2 px-4 rounded-md transition-colors disabled:opacity-50 font-medium ${
+                    config.variant === "trial"
+                      ? "bg-studify-green hover:bg-studify-green/90 text-white border border-green-600"
+                      : config.variant === "studify"
+                        ? "bg-studify-green hover:bg-studify-green/90 text-white"
+                        : config.variant === "secondary"
+                          ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                          : config.variant === "outline"
+                            ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                            : "bg-gray-900 hover:bg-gray-800 text-white"
                   }`}
                   onClick={() => {
                     console.log("🖱️ CLIQUE DETECTADO! Plano: monthly")
                     handleSubscribe("monthly")
                   }}
-                  disabled={config.disabled || loading === "monthly"}
+                  disabled={config.disabled || loading === "monthly" || loading === "trial"}
                 >
-                  {loading === "monthly" ? (
+                  {loading === "monthly" || loading === "trial" ? (
                     <div className="flex items-center justify-center">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processando...
@@ -585,6 +636,9 @@ export default function AssinaturaPage() {
                 </button>
               )
             })()}
+            {!isPremium && !hasHadTrial && (
+              <p className="text-xs text-gray-500 text-center mt-2">7 dias grátis, depois R$ 29,90/mês</p>
+            )}
           </CardContent>
         </Card>
 
@@ -666,21 +720,23 @@ export default function AssinaturaPage() {
               return (
                 <button
                   className={`w-full py-2 px-4 rounded-md transition-colors disabled:opacity-50 ${
-                    config.variant === "studify"
-                      ? "bg-studify-green hover:bg-studify-green/90 text-white"
-                      : config.variant === "secondary"
-                        ? "bg-gray-200 text-gray-600 cursor-not-allowed"
-                        : config.variant === "outline"
-                          ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
-                          : "bg-gray-900 hover:bg-gray-800 text-white"
+                    config.variant === "trial"
+                      ? "bg-studify-green hover:bg-studify-green/90 text-white border border-green-600"
+                      : config.variant === "studify"
+                        ? "bg-studify-green hover:bg-studify-green/90 text-white"
+                        : config.variant === "secondary"
+                          ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                          : config.variant === "outline"
+                            ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                            : "bg-gray-900 hover:bg-gray-800 text-white"
                   }`}
                   onClick={() => {
                     console.log("🖱️ CLIQUE DETECTADO! Plano: quarterly")
                     handleSubscribe("quarterly")
                   }}
-                  disabled={config.disabled || loading === "quarterly"}
+                  disabled={config.disabled || loading === "quarterly" || loading === "trial"}
                 >
-                  {loading === "quarterly" ? (
+                  {loading === "quarterly" || loading === "trial" ? (
                     <div className="flex items-center justify-center">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processando...
@@ -694,6 +750,9 @@ export default function AssinaturaPage() {
                 </button>
               )
             })()}
+            {!isPremium && !hasHadTrial && (
+              <p className="text-xs text-gray-500 text-center mt-2">7 dias grátis, depois R$ 74,70 a cada 3 meses</p>
+            )}
           </CardContent>
         </Card>
 
@@ -781,21 +840,23 @@ export default function AssinaturaPage() {
               return (
                 <button
                   className={`w-full py-2 px-4 rounded-md transition-colors disabled:opacity-50 ${
-                    config.variant === "studify"
-                      ? "bg-studify-green hover:bg-studify-green/90 text-white"
-                      : config.variant === "secondary"
-                        ? "bg-gray-200 text-gray-600 cursor-not-allowed"
-                        : config.variant === "outline"
-                          ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
-                          : "bg-gray-900 hover:bg-gray-800 text-white"
+                    config.variant === "trial"
+                      ? "bg-studify-green hover:bg-studify-green/90 text-white border border-green-600"
+                      : config.variant === "studify"
+                        ? "bg-studify-green hover:bg-studify-green/90 text-white"
+                        : config.variant === "secondary"
+                          ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                          : config.variant === "outline"
+                            ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                            : "bg-gray-900 hover:bg-gray-800 text-white"
                   }`}
                   onClick={() => {
                     console.log("🖱️ CLIQUE DETECTADO! Plano: yearly")
                     handleSubscribe("yearly")
                   }}
-                  disabled={config.disabled || loading === "yearly"}
+                  disabled={config.disabled || loading === "yearly" || loading === "trial"}
                 >
-                  {loading === "yearly" ? (
+                  {loading === "yearly" || loading === "trial" ? (
                     <div className="flex items-center justify-center">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processando...
@@ -809,6 +870,9 @@ export default function AssinaturaPage() {
                 </button>
               )
             })()}
+            {!isPremium && !hasHadTrial && (
+              <p className="text-xs text-gray-500 text-center mt-2">7 dias grátis, depois R$ 238,80/ano</p>
+            )}
           </CardContent>
         </Card>
       </div>

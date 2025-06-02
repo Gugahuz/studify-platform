@@ -33,6 +33,7 @@ function CheckoutForm({ priceId, userId, planName, amount, onSuccess, onCancel }
   const [name, setName] = useState("")
   const [cardError, setCardError] = useState<string | null>(null)
   const [cardComplete, setCardComplete] = useState(false)
+  const [isTrial, setIsTrial] = useState(false)
 
   // Criar Payment Intent
   useEffect(() => {
@@ -62,6 +63,26 @@ function CheckoutForm({ priceId, userId, planName, amount, onSuccess, onCancel }
 
     createPaymentIntent()
   }, [priceId, userId])
+
+  useEffect(() => {
+    const getUserData = async () => {
+      try {
+        const { data: profile } = await supabase.from("profiles").select("email, nome").eq("id", userId).single()
+
+        if (profile) {
+          setEmail(profile.email || "")
+          setName(profile.nome || "")
+        }
+
+        // Verificar se é trial
+        setIsTrial(planName === "Trial 7 dias")
+      } catch (error) {
+        console.error("Erro ao buscar dados do usuário:", error)
+      }
+    }
+
+    getUserData()
+  }, [userId, planName])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -142,18 +163,22 @@ function CheckoutForm({ priceId, userId, planName, amount, onSuccess, onCancel }
       const now = new Date()
       let expiryDate: Date
 
-      switch (planName) {
-        case "Mensal":
-          expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 dias
-          break
-        case "Trimestral":
-          expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000) // 90 dias
-          break
-        case "Anual":
-          expiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000) // 365 dias
-          break
-        default:
-          expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // Default 30 dias
+      if (isTrial) {
+        expiryDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 dias para trial
+      } else {
+        switch (planName) {
+          case "Mensal":
+            expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 dias
+            break
+          case "Trimestral":
+            expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000) // 90 dias
+            break
+          case "Anual":
+            expiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000) // 365 dias
+            break
+          default:
+            expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // Default 30 dias
+        }
       }
 
       // Atualizar perfil do usuário
@@ -171,7 +196,13 @@ function CheckoutForm({ priceId, userId, planName, amount, onSuccess, onCancel }
       }
 
       // Mapear nome do plano para tipo de plano
-      const planType = planName === "Mensal" ? "monthly" : planName === "Trimestral" ? "quarterly" : "yearly"
+      const planType = isTrial
+        ? "trial"
+        : planName === "Mensal"
+          ? "monthly"
+          : planName === "Trimestral"
+            ? "quarterly"
+            : "yearly"
 
       // Verificar se já existe uma assinatura para este usuário
       const { data: existingSubscription } = await supabase
@@ -310,20 +341,27 @@ function CheckoutForm({ priceId, userId, planName, amount, onSuccess, onCancel }
   return (
     <div className="max-w-md mx-auto space-y-6 py-6">
       {/* Header do Plano */}
-      <div className={`rounded-lg border-2 p-4 ${getPlanColor()}`}>
+      <div className={`rounded-lg border-2 p-4 ${isTrial ? "border-blue-200 bg-blue-50" : getPlanColor()}`}>
         <div className="flex items-center gap-3 mb-3">
-          {getPlanIcon()}
+          {isTrial ? <Star className="h-5 w-5 text-blue-600" /> : getPlanIcon()}
           <div>
-            <h3 className="font-semibold text-gray-900">Plano {planName}</h3>
-            <p className="text-sm text-gray-600">Studify Premium</p>
+            <h3 className="font-semibold text-gray-900">{isTrial ? "Trial Gratuito" : `Plano ${planName}`}</h3>
+            <p className="text-sm text-gray-600">{isTrial ? "7 dias grátis + Studify Premium" : "Studify Premium"}</p>
           </div>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-2xl font-bold text-gray-900">{amount}</span>
+          <span className={`text-2xl font-bold ${isTrial ? "text-blue-600" : "text-gray-900"}`}>{amount}</span>
           <div className="text-right">
             <p className="text-sm text-gray-600">
-              {planName === "Mensal" ? "por mês" : planName === "Trimestral" ? "por trimestre" : "por ano"}
+              {isTrial
+                ? "7 dias grátis"
+                : planName === "Mensal"
+                  ? "por mês"
+                  : planName === "Trimestral"
+                    ? "por trimestre"
+                    : "por ano"}
             </p>
+            {isTrial && <p className="text-xs text-gray-500">depois R$ 29,90/mês</p>}
           </div>
         </div>
       </div>
@@ -384,6 +422,20 @@ function CheckoutForm({ priceId, userId, planName, amount, onSuccess, onCancel }
         <Separator />
 
         {/* Resumo */}
+        {isTrial && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <Star className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-blue-900 mb-1">Trial Gratuito de 7 Dias</h4>
+                <p className="text-sm text-blue-700">
+                  Você terá acesso completo por 7 dias gratuitamente. Após esse período, será cobrado R$ 29,90/mês
+                  automaticamente. Você pode cancelar a qualquer momento.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="space-y-3 bg-gray-50 rounded-lg p-4">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Subtotal</span>
@@ -469,10 +521,12 @@ interface EmbeddedCheckoutProps {
   onCancel: () => void
 }
 
-export default function EmbeddedCheckout(props: EmbeddedCheckoutProps) {
+function EmbeddedCheckout(props: EmbeddedCheckoutProps) {
   return (
     <Elements stripe={stripePromise}>
       <CheckoutForm {...props} />
     </Elements>
   )
 }
+
+export default EmbeddedCheckout
