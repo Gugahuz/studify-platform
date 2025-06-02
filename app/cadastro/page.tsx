@@ -13,6 +13,15 @@ import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { supabase, checkUserProfile, createUserProfile } from "@/lib/supabase"
 
+// Função para formatar telefone
+const formatPhone = (value: string) => {
+  const numbers = value.replace(/\D/g, "")
+  if (numbers.length <= 11) {
+    return numbers.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3")
+  }
+  return value.slice(0, 15) // Máximo 15 caracteres
+}
+
 export default function CadastroPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -25,6 +34,75 @@ export default function CadastroPage() {
   })
   const router = useRouter()
   const { toast } = useToast()
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState({
+    email: "",
+    telefone: "",
+    senha: "",
+    confirmarSenha: "",
+  })
+
+  const validateEmail = async (email: string) => {
+    if (!email) {
+      setFieldErrors((prev) => ({ ...prev, email: "" }))
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setFieldErrors((prev) => ({ ...prev, email: "Formato de email inválido" }))
+      return
+    }
+
+    // Verificar se email já existe
+    const { data: existingEmail } = await supabase.from("profiles").select("email").eq("email", email.trim()).single()
+
+    if (existingEmail) {
+      setFieldErrors((prev) => ({ ...prev, email: "Este email já está cadastrado" }))
+    } else {
+      setFieldErrors((prev) => ({ ...prev, email: "" }))
+    }
+  }
+
+  const validatePhone = async (phone: string) => {
+    if (!phone) {
+      setFieldErrors((prev) => ({ ...prev, telefone: "" }))
+      return
+    }
+
+    const numbers = phone.replace(/\D/g, "")
+    if (numbers.length < 10) {
+      setFieldErrors((prev) => ({ ...prev, telefone: "Telefone deve ter pelo menos 10 dígitos" }))
+      return
+    }
+
+    // Verificar se telefone já existe
+    const { data: existingPhone } = await supabase
+      .from("profiles")
+      .select("telefone")
+      .eq("telefone", phone.trim())
+      .single()
+
+    if (existingPhone) {
+      setFieldErrors((prev) => ({ ...prev, telefone: "Este telefone já está cadastrado" }))
+    } else {
+      setFieldErrors((prev) => ({ ...prev, telefone: "" }))
+    }
+  }
+
+  const validatePassword = (senha: string, confirmarSenha: string) => {
+    if (senha && senha.length < 6) {
+      setFieldErrors((prev) => ({ ...prev, senha: "Senha deve ter pelo menos 6 caracteres" }))
+    } else {
+      setFieldErrors((prev) => ({ ...prev, senha: "" }))
+    }
+
+    if (confirmarSenha && senha !== confirmarSenha) {
+      setFieldErrors((prev) => ({ ...prev, confirmarSenha: "As senhas não coincidem" }))
+    } else {
+      setFieldErrors((prev) => ({ ...prev, confirmarSenha: "" }))
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,6 +174,41 @@ export default function CadastroPage() {
         toast({
           title: "Erro no cadastro",
           description: "A senha deve ter pelo menos 6 caracteres.",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Verificar se email já existe
+      const { data: existingEmail } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("email", formData.email.trim())
+        .single()
+
+      if (existingEmail) {
+        toast({
+          title: "Erro no cadastro",
+          description: "Este email já está cadastrado. Tente fazer login.",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Verificar se telefone já existe
+      const phoneNumbers = formData.telefone.replace(/\D/g, "")
+      const { data: existingPhone } = await supabase
+        .from("profiles")
+        .select("telefone")
+        .eq("telefone", formData.telefone.trim())
+        .single()
+
+      if (existingPhone) {
+        toast({
+          title: "Erro no cadastro",
+          description: "Este telefone já está cadastrado.",
           variant: "destructive",
         })
         setIsLoading(false)
@@ -187,14 +300,14 @@ export default function CadastroPage() {
           }
         }
 
-        // Sucesso - redirecionar para login
-        toast({
-          title: "Cadastro realizado!",
-          description: "Conta criada com sucesso! Redirecionando para o login...",
-        })
+        // Mostrar popup de sucesso
+        setShowSuccessPopup(true)
 
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-        router.push("/")
+        // Esconder popup após 1 segundo e redirecionar
+        setTimeout(() => {
+          setShowSuccessPopup(false)
+          router.push("/")
+        }, 1000)
       }
     } catch (error) {
       toast({
@@ -289,9 +402,18 @@ export default function CadastroPage() {
                     placeholder="seu@email.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="border-studify-gray/30 focus-visible:ring-studify-green"
+                    onBlur={(e) => validateEmail(e.target.value)}
+                    className={`border-studify-gray/30 focus-visible:ring-studify-green ${
+                      fieldErrors.email ? "border-red-500 focus-visible:ring-red-500" : ""
+                    }`}
                     required
                   />
+                  {fieldErrors.email && (
+                    <p className="text-sm text-red-600 flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.email}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -303,10 +425,23 @@ export default function CadastroPage() {
                     type="tel"
                     placeholder="(11) 99999-9999"
                     value={formData.telefone}
-                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                    className="border-studify-gray/30 focus-visible:ring-studify-green"
+                    onChange={(e) => {
+                      const formatted = formatPhone(e.target.value)
+                      setFormData({ ...formData, telefone: formatted })
+                    }}
+                    onBlur={(e) => validatePhone(e.target.value)}
+                    className={`border-studify-gray/30 focus-visible:ring-studify-green ${
+                      fieldErrors.telefone ? "border-red-500 focus-visible:ring-red-500" : ""
+                    }`}
+                    maxLength={15}
                     required
                   />
+                  {fieldErrors.telefone && (
+                    <p className="text-sm text-red-600 flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.telefone}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -339,10 +474,21 @@ export default function CadastroPage() {
                     type="password"
                     placeholder="••••••••"
                     value={formData.senha}
-                    onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
-                    className="border-studify-gray/30 focus-visible:ring-studify-green"
+                    onChange={(e) => {
+                      setFormData({ ...formData, senha: e.target.value })
+                      validatePassword(e.target.value, formData.confirmarSenha)
+                    }}
+                    className={`border-studify-gray/30 focus-visible:ring-studify-green ${
+                      fieldErrors.senha ? "border-red-500 focus-visible:ring-red-500" : ""
+                    }`}
                     required
                   />
+                  {fieldErrors.senha && (
+                    <p className="text-sm text-red-600 flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.senha}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -354,16 +500,27 @@ export default function CadastroPage() {
                     type="password"
                     placeholder="••••••••"
                     value={formData.confirmarSenha}
-                    onChange={(e) => setFormData({ ...formData, confirmarSenha: e.target.value })}
-                    className="border-studify-gray/30 focus-visible:ring-studify-green"
+                    onChange={(e) => {
+                      setFormData({ ...formData, confirmarSenha: e.target.value })
+                      validatePassword(formData.senha, e.target.value)
+                    }}
+                    className={`border-studify-gray/30 focus-visible:ring-studify-green ${
+                      fieldErrors.confirmarSenha ? "border-red-500 focus-visible:ring-red-500" : ""
+                    }`}
                     required
                   />
+                  {fieldErrors.confirmarSenha && (
+                    <p className="text-sm text-red-600 flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.confirmarSenha}
+                    </p>
+                  )}
                 </div>
 
                 <Button
                   type="submit"
                   className="w-full bg-studify-green hover:bg-studify-green/90 text-studify-white"
-                  disabled={isLoading}
+                  disabled={isLoading || Object.values(fieldErrors).some((error) => error !== "")}
                 >
                   {isLoading ? (
                     <>
@@ -386,6 +543,15 @@ export default function CadastroPage() {
           </Card>
         </div>
       </div>
+      {/* Popup de Sucesso */}
+      {showSuccessPopup && (
+        <div className="fixed bottom-4 right-4 bg-studify-green text-studify-white px-6 py-3 rounded-lg shadow-lg z-50 animate-in slide-in-from-right-2 duration-300">
+          <div className="flex items-center">
+            <CheckCircle className="h-5 w-5 mr-2" />
+            <span className="font-medium">Cadastro realizado com sucesso!</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
