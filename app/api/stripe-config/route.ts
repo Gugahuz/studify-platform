@@ -128,7 +128,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      webhookUrl: "https://v0-studify0106.vercel.app/api/webhooks/stripe",
+      webhookUrl: "https://studify.digital/api/webhooks/stripe",
       configuration: {
         secretKeyConfigured: !!process.env.STRIPE_SECRET_KEY,
         publishableKeyConfigured: !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,

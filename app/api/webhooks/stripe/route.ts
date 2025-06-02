@@ -10,6 +10,8 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("🎯 Webhook POST received")
+
     const body = await req.text()
     const signature = req.headers.get("stripe-signature")!
 
@@ -55,6 +57,14 @@ export async function POST(req: NextRequest) {
     console.error("❌ Webhook error:", error)
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 })
   }
+}
+
+// Adicionar método GET para teste
+export async function GET() {
+  return NextResponse.json({
+    message: "Webhook endpoint is working",
+    timestamp: new Date().toISOString(),
+  })
 }
 
 // Handler para payment_intent.succeeded

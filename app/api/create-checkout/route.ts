@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
       console.log("✨ Novo cliente criado:", customerId)
     }
 
-    // Determinar a URL base para redirecionamentos
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://v0-studify0106.vercel.app"
+    // Usar o novo domínio para redirecionamentos
+    const baseUrl = "https://studify.digital"
 
     // Criar sessão de checkout
     const session = await stripe.checkout.sessions.create({
