@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Bell, LogOut, Loader2, User, Settings, ChevronDown } from "lucide-react"
+import { Bell, LogOut, Loader2, User, ChevronDown } from "lucide-react"
 import { signOut } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useUserData } from "@/hooks/use-user-data"
@@ -79,11 +79,6 @@ export function TopNav() {
   const goToProfile = () => {
     setIsDropdownOpen(false)
     router.push("/dashboard/perfil")
-  }
-
-  const goToSettings = () => {
-    setIsDropdownOpen(false)
-    router.push("/dashboard/configuracoes")
   }
 
   const toggleDropdown = () => {
@@ -165,15 +160,6 @@ export function TopNav() {
                   >
                     <User className="h-4 w-4" />
                     Perfil
-                  </button>
-
-                  <button
-                    onClick={goToSettings}
-                    disabled={isLoggingOut}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
-                  >
-                    <Settings className="h-4 w-4" />
-                    Configurações
                   </button>
 
                   <div className="border-t border-gray-100 my-1"></div>
