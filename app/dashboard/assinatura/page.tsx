@@ -15,20 +15,13 @@ import {
   AlertCircle,
   ArrowUp,
   ArrowDown,
-  ExternalLink,
   CheckCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import EmbeddedCheckout from "@/components/embedded-checkout"
 
 export default function AssinaturaPage() {
   const [loading, setLoading] = useState<string | null>(null)
@@ -40,8 +33,13 @@ export default function AssinaturaPage() {
   const [stripeProducts, setStripeProducts] = useState<any>(null)
   const [productsLoading, setProductsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
   const [showCheckoutModal, setShowCheckoutModal] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<{
+    id: string
+    name: string
+    priceId: string
+    amount: string
+  } | null>(null)
 
   // Buscar dados do usuário
   useEffect(() => {
@@ -139,10 +137,9 @@ export default function AssinaturaPage() {
     fetchStripeProducts()
   }, [])
 
-  // Função para processar assinatura com Stripe REAL
+  // Função para processar assinatura
   const handleSubscribe = async (planId: string) => {
     console.log("🎯 BOTÃO CLICADO! handleSubscribe chamado com planId:", planId)
-    console.log("👤 Usuário atual:", user?.id)
 
     if (!user?.id) {
       console.error("❌ Usuário não encontrado")
@@ -150,65 +147,36 @@ export default function AssinaturaPage() {
       return
     }
 
-    await processStripeCheckout(planId)
+    // Obter informações do plano
+    const priceId = getPriceIdForPlan(planId)
+    if (!priceId) {
+      toast.error("Erro ao obter informações do plano")
+      return
+    }
+
+    const planInfo = getPlanInfo(planId)
+
+    setSelectedPlan({
+      id: planId,
+      name: planInfo.name,
+      priceId: priceId,
+      amount: planInfo.amount,
+    })
+
+    setShowCheckoutModal(true)
   }
 
-  // Função para processar checkout real do Stripe
-  const processStripeCheckout = async (planId: string) => {
-    try {
-      setLoading(planId)
-      console.log(`🚀 Iniciando checkout do Stripe para plano: ${planId}`)
-      console.log("📊 Estado atual dos produtos:", stripeProducts)
-
-      // Verificar se os produtos foram carregados
-      if (!stripeProducts || !stripeProducts.success) {
-        throw new Error("Produtos do Stripe não foram carregados corretamente")
-      }
-
-      // Obter o Price ID correto baseado no plano
-      const priceId = getPriceIdForPlan(planId)
-      console.log("💰 Price ID obtido:", priceId)
-
-      if (!priceId) {
-        throw new Error(`Price ID não encontrado para o plano ${planId}. Verifique a configuração do Stripe.`)
-      }
-
-      console.log("💳 Price ID:", priceId)
-
-      // Criar sessão de checkout
-      const response = await fetch("/api/create-checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          priceId: priceId,
-          userId: user.id,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Erro HTTP: ${response.status}`)
-      }
-
-      const data = await response.json()
-      console.log("✅ Sessão de checkout criada:", data.sessionId)
-
-      // Mostrar modal com link para checkout
-      if (data.url) {
-        console.log("🔄 URL de checkout recebida:", data.url)
-        setCheckoutUrl(data.url)
-        setShowCheckoutModal(true)
-        toast.success("Sessão de checkout criada! Clique para continuar.")
-      } else {
-        throw new Error("URL de checkout não recebida")
-      }
-    } catch (error) {
-      console.error("❌ Erro ao processar checkout:", error)
-      toast.error(error instanceof Error ? error.message : "Erro ao processar pagamento")
-    } finally {
-      setLoading(null)
+  // Função para obter informações do plano
+  const getPlanInfo = (planId: string) => {
+    switch (planId) {
+      case "monthly":
+        return { name: "Mensal", amount: "R$ 29,90" }
+      case "quarterly":
+        return { name: "Trimestral", amount: "R$ 74,70" }
+      case "yearly":
+        return { name: "Anual", amount: "R$ 238,80" }
+      default:
+        return { name: "Desconhecido", amount: "R$ 0,00" }
     }
   }
 
@@ -227,6 +195,23 @@ export default function AssinaturaPage() {
 
     console.error(`❌ Price ID não encontrado para o plano: ${planId}`)
     return null
+  }
+
+  // Função chamada quando o pagamento é bem-sucedido
+  const handlePaymentSuccess = async () => {
+    console.log("🎉 Pagamento realizado com sucesso!")
+
+    // Fechar modal
+    setShowCheckoutModal(false)
+    setSelectedPlan(null)
+
+    // Recarregar dados do usuário
+    toast.success("🎉 Bem-vindo ao Studify Premium!")
+
+    // Aguardar um pouco e recarregar a página para atualizar o status
+    setTimeout(() => {
+      window.location.reload()
+    }, 2000)
   }
 
   // Cancelar assinatura
@@ -406,47 +391,27 @@ export default function AssinaturaPage() {
         <p className="text-gray-600">Desbloqueie todo o potencial do Studify</p>
       </div>
 
-      {/* Modal de Checkout */}
+      {/* Modal de Checkout Embarcado */}
       <Dialog open={showCheckoutModal} onOpenChange={setShowCheckoutModal}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
               Finalizar Pagamento
             </DialogTitle>
-            <DialogDescription>
-              Sua sessão de checkout foi criada com sucesso! Clique no botão abaixo para ser redirecionado ao Stripe e
-              finalizar seu pagamento.
-            </DialogDescription>
+            <DialogDescription>Complete seu pagamento de forma segura</DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-green-700">
-                <CheckCircle className="h-5 w-5" />
-                <span className="font-medium">Checkout criado com sucesso!</span>
-              </div>
-              <p className="text-sm text-green-600 mt-1">
-                Você será redirecionado para uma página segura do Stripe para inserir os dados do cartão.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCheckoutModal(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => {
-                if (checkoutUrl) {
-                  window.open(checkoutUrl, "_blank")
-                  setShowCheckoutModal(false)
-                }
-              }}
-              className="flex items-center gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Ir para Stripe Checkout
-            </Button>
-          </DialogFooter>
+
+          {selectedPlan && (
+            <EmbeddedCheckout
+              priceId={selectedPlan.priceId}
+              userId={user.id}
+              planName={selectedPlan.name}
+              amount={selectedPlan.amount}
+              onSuccess={handlePaymentSuccess}
+              onCancel={() => setShowCheckoutModal(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -527,8 +492,8 @@ export default function AssinaturaPage() {
       <Alert className="mb-6 border-green-200 bg-green-50">
         <CheckCircle className="h-4 w-4 text-green-600" />
         <AlertDescription className="text-green-700">
-          <strong>✅ Sistema funcionando perfeitamente!</strong> O checkout está sendo criado com sucesso. Após clicar
-          em "Assinar agora", você verá um modal para ir ao Stripe.
+          <strong>✅ Checkout embarcado ativo!</strong> Agora o pagamento é processado diretamente na plataforma, sem
+          redirecionamentos.
         </AlertDescription>
       </Alert>
 
