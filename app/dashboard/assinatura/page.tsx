@@ -4,93 +4,48 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Check, CreditCard, Crown, Loader2, Star, Zap, Shield } from "lucide-react"
-import { useUserData } from "@/hooks/use-user-data"
+import { Check, CreditCard, Crown, Loader2, Star, Zap, Shield, AlertCircle, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
-
-// Planos de assinatura
-const plans = [
-  {
-    id: "monthly",
-    name: "Mensal",
-    description: "Perfeito para começar",
-    price: 29.9,
-    interval: "mês",
-    billingCycle: "Cobrado mensalmente",
-    features: [
-      "Acesso completo ao assistente Studo",
-      "Geração ilimitada de resumos",
-      "Cronograma personalizado",
-      "Simulados e exercícios",
-      "Suporte prioritário",
-    ],
-    icon: Zap,
-  },
-  {
-    id: "quarterly",
-    name: "Trimestral",
-    description: "Melhor custo-benefício",
-    price: 24.9,
-    originalPrice: 29.9,
-    interval: "mês",
-    billingCycle: "Cobrado a cada 3 meses (R$ 74,70)",
-    features: [
-      "Acesso completo ao assistente Studo",
-      "Geração ilimitada de resumos",
-      "Cronograma personalizado",
-      "Simulados e exercícios",
-      "Suporte prioritário",
-      "Relatórios de progresso avançados",
-    ],
-    popular: true,
-    savings: "Economize 17%",
-    icon: Star,
-  },
-  {
-    id: "yearly",
-    name: "Anual",
-    description: "Máxima economia",
-    price: 19.9,
-    originalPrice: 29.9,
-    interval: "mês",
-    billingCycle: "Cobrado anualmente (R$ 238,80)",
-    features: [
-      "Acesso completo ao assistente Studo",
-      "Geração ilimitada de resumos",
-      "Cronograma personalizado",
-      "Simulados e exercícios",
-      "Suporte prioritário",
-      "Relatórios de progresso avançados",
-      "Acesso antecipado a novas funcionalidades",
-      "Consultoria personalizada mensal",
-    ],
-    savings: "Economize 33%",
-    icon: Crown,
-  },
-]
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function AssinaturaPage() {
-  const { user, loading: userLoading, refreshUserData } = useUserData()
   const [loading, setLoading] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
   const [isPremium, setIsPremium] = useState(false)
   const [currentPlan, setCurrentPlan] = useState<string | null>(null)
   const [expiryDate, setExpiryDate] = useState<string | null>(null)
-  const [subscriptionData, setSubscriptionData] = useState<any>(null)
+  const [userLoading, setUserLoading] = useState(true)
 
-  // Buscar status de assinatura ao carregar
+  // Buscar dados do usuário
   useEffect(() => {
-    const fetchSubscriptionStatus = async () => {
-      if (!user?.id) return
-
+    const getUser = async () => {
       try {
-        console.log("🔍 Buscando status de assinatura para usuário:", user.id)
+        console.log("🔍 Buscando dados do usuário...")
+
+        const {
+          data: { user: authUser },
+          error: authError,
+        } = await supabase.auth.getUser()
+
+        if (authError) {
+          console.error("❌ Erro na autenticação:", authError)
+          return
+        }
+
+        if (!authUser) {
+          console.log("❌ Usuário não autenticado")
+          return
+        }
+
+        console.log("✅ Usuário autenticado:", authUser.id)
+        setUser(authUser)
 
         // Buscar perfil do usuário
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("is_premium, premium_expires_at")
-          .eq("id", user.id)
+          .eq("id", authUser.id)
           .single()
 
         if (profileError) {
@@ -105,7 +60,7 @@ export default function AssinaturaPage() {
         const { data: subscription, error: subscriptionError } = await supabase
           .from("subscriptions")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", authUser.id)
           .eq("status", "active")
           .single()
 
@@ -114,26 +69,36 @@ export default function AssinaturaPage() {
         } else if (subscription) {
           console.log("✅ Assinatura ativa encontrada:", subscription)
           setCurrentPlan(subscription.plan_type)
-          setSubscriptionData(subscription)
         }
       } catch (error) {
-        console.error("❌ Erro ao buscar status de assinatura:", error)
+        console.error("❌ Erro geral:", error)
+      } finally {
+        setUserLoading(false)
       }
     }
 
-    fetchSubscriptionStatus()
-  }, [user?.id])
+    getUser()
+  }, [])
 
-  // Simular assinatura (para ambiente de teste)
-  const handleSubscribe = async (planId: string) => {
+  // Função para processar assinatura - VERSÃO SIMPLIFICADA
+  const handleSubscribe = (planId: string) => {
+    console.log("🎯 BOTÃO CLICADO! handleSubscribe chamado com planId:", planId)
+    console.log("👤 Usuário atual:", user?.id)
+
     if (!user?.id) {
+      console.error("❌ Usuário não encontrado")
       toast.error("Você precisa estar logado para assinar")
       return
     }
 
+    processSubscription(planId)
+  }
+
+  // Função separada para processar a assinatura
+  const processSubscription = async (planId: string) => {
     try {
       setLoading(planId)
-      console.log(`🚀 Iniciando assinatura do plano: ${planId}`)
+      console.log(`🚀 Iniciando assinatura do plano: ${planId} para usuário: ${user.id}`)
 
       // Simular processamento de pagamento
       toast.loading("Processando pagamento...", { id: "payment" })
@@ -206,9 +171,6 @@ export default function AssinaturaPage() {
       setCurrentPlan(planId)
       setExpiryDate(expiryDate.toISOString())
 
-      // Atualizar dados do usuário
-      refreshUserData()
-
       toast.dismiss("payment")
       toast.success("🎉 Assinatura realizada com sucesso! Bem-vindo ao Premium!")
     } catch (error) {
@@ -228,7 +190,6 @@ export default function AssinaturaPage() {
       setLoading("cancel")
       console.log("🚫 Cancelando assinatura...")
 
-      // Simular processamento
       toast.loading("Cancelando assinatura...", { id: "cancel" })
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
@@ -262,10 +223,6 @@ export default function AssinaturaPage() {
       setIsPremium(false)
       setCurrentPlan(null)
       setExpiryDate(null)
-      setSubscriptionData(null)
-
-      // Atualizar dados do usuário
-      refreshUserData()
 
       toast.dismiss("cancel")
       toast.success("Assinatura cancelada com sucesso")
@@ -276,6 +233,48 @@ export default function AssinaturaPage() {
       toast.error(error instanceof Error ? error.message : "Erro ao cancelar assinatura")
     } finally {
       setLoading(null)
+    }
+  }
+
+  // Função para determinar o texto e estilo do botão
+  const getButtonConfig = (planId: string) => {
+    if (!isPremium) {
+      return {
+        text: "Assinar Agora",
+        disabled: false,
+        variant: planId === "quarterly" ? "studify" : "default",
+        icon: null,
+      }
+    }
+
+    if (currentPlan === planId) {
+      return {
+        text: "Plano Atual",
+        disabled: true,
+        variant: "secondary",
+        icon: null,
+      }
+    }
+
+    // Definir hierarquia dos planos
+    const planHierarchy = { monthly: 1, quarterly: 2, yearly: 3 }
+    const currentLevel = planHierarchy[currentPlan as keyof typeof planHierarchy] || 0
+    const targetLevel = planHierarchy[planId as keyof typeof planHierarchy] || 0
+
+    if (targetLevel > currentLevel) {
+      return {
+        text: "Fazer Upgrade",
+        disabled: false,
+        variant: planId === "quarterly" ? "studify" : "default",
+        icon: <ArrowUp className="mr-2 h-4 w-4" />,
+      }
+    } else {
+      return {
+        text: "Alterar Plano",
+        disabled: false,
+        variant: "outline",
+        icon: <ArrowDown className="mr-2 h-4 w-4" />,
+      }
     }
   }
 
@@ -303,15 +302,20 @@ export default function AssinaturaPage() {
   if (userLoading) {
     return (
       <div className="container mx-auto p-4">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-48 mb-6"></div>
-          <div className="h-32 bg-gray-200 rounded mb-6"></div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-96 bg-gray-200 rounded"></div>
-            ))}
-          </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto p-4">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Você precisa estar logado para acessar esta página.</AlertDescription>
+        </Alert>
       </div>
     )
   }
@@ -396,91 +400,326 @@ export default function AssinaturaPage() {
         </Card>
       )}
 
+      {/* PLANOS DE ASSINATURA - VERSÃO CORRIGIDA */}
       <div className="grid gap-8 md:grid-cols-3 mb-8">
-        {plans.map((plan) => {
-          const IconComponent = plan.icon
-          return (
-            <Card
-              key={plan.id}
-              className={`relative transition-all duration-200 hover:shadow-lg ${
-                plan.popular
-                  ? "border-studify-green shadow-lg scale-105 bg-gradient-to-b from-green-50 to-white"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-studify-green text-white px-4 py-1">Mais Popular</Badge>
-                </div>
-              )}
+        {/* PLANO MENSAL */}
+        <Card
+          className={`relative transition-all duration-200 hover:shadow-lg ${
+            currentPlan === "monthly" ? "border-studify-green bg-green-50" : "border-gray-200 hover:border-gray-300"
+          }`}
+        >
+          {currentPlan === "monthly" && (
+            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-studify-green text-white px-4 py-1">Seu Plano</Badge>
+            </div>
+          )}
 
-              <CardHeader className="text-center pb-4">
-                <div className="flex justify-center mb-4">
-                  <div
-                    className={`p-3 rounded-full ${
-                      plan.popular ? "bg-studify-green text-white" : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    <IconComponent className="h-6 w-6" />
-                  </div>
-                </div>
+          <CardHeader className="text-center pb-4">
+            <div className="flex justify-center mb-4">
+              <div
+                className={`p-3 rounded-full ${
+                  currentPlan === "monthly" ? "bg-studify-green text-white" : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                <Zap className="h-6 w-6" />
+              </div>
+            </div>
 
-                <CardTitle className="text-xl">{plan.name}</CardTitle>
-                <CardDescription className="text-sm">{plan.description}</CardDescription>
+            <CardTitle className="text-xl">Mensal</CardTitle>
+            <CardDescription className="text-sm">Perfeito para começar</CardDescription>
 
-                <div className="mt-4">
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="text-3xl font-bold">R$ {plan.price.toFixed(2)}</span>
-                    <span className="text-gray-500">/{plan.interval}</span>
-                  </div>
+            <div className="mt-4">
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-3xl font-bold">R$ 29.90</span>
+                <span className="text-gray-500">/mês</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Cobrado mensalmente</p>
+            </div>
+          </CardHeader>
 
-                  {plan.originalPrice && (
-                    <div className="flex items-center justify-center gap-2 mt-2">
-                      <span className="text-sm text-gray-400 line-through">De R$ {plan.originalPrice.toFixed(2)}</span>
-                      {plan.savings && (
-                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                          {plan.savings}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+          <CardContent>
+            <ul className="space-y-3 mb-6">
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Acesso completo ao assistente Studo</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Geração ilimitada de resumos</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Cronograma personalizado</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Simulados e exercícios</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Suporte prioritário</span>
+              </li>
+            </ul>
 
-                  <p className="text-xs text-gray-500 mt-2">{plan.billingCycle}</p>
-                </div>
-              </CardHeader>
-
-              <CardContent>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  className={`w-full ${
-                    plan.popular ? "bg-studify-green hover:bg-studify-green/90" : "bg-gray-900 hover:bg-gray-800"
+            {(() => {
+              const config = getButtonConfig("monthly")
+              return (
+                <button
+                  className={`w-full py-2 px-4 rounded-md transition-colors disabled:opacity-50 ${
+                    config.variant === "studify"
+                      ? "bg-studify-green hover:bg-studify-green/90 text-white"
+                      : config.variant === "secondary"
+                        ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                        : config.variant === "outline"
+                          ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                          : "bg-gray-900 hover:bg-gray-800 text-white"
                   }`}
-                  onClick={() => handleSubscribe(plan.id)}
-                  disabled={loading === plan.id || isPremium}
+                  onClick={() => {
+                    console.log("🖱️ CLIQUE DETECTADO! Plano: monthly")
+                    handleSubscribe("monthly")
+                  }}
+                  disabled={config.disabled || loading === "monthly"}
                 >
-                  {loading === plan.id ? (
-                    <>
+                  {loading === "monthly" ? (
+                    <div className="flex items-center justify-center">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processando...
-                    </>
-                  ) : isPremium ? (
-                    "Plano Atual"
+                    </div>
                   ) : (
-                    "Assinar Agora"
+                    <div className="flex items-center justify-center">
+                      {config.icon}
+                      {config.text}
+                    </div>
                   )}
-                </Button>
-              </CardContent>
-            </Card>
-          )
-        })}
+                </button>
+              )
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* PLANO TRIMESTRAL */}
+        <Card
+          className={`relative transition-all duration-200 hover:shadow-lg ${
+            currentPlan === "quarterly"
+              ? "border-studify-green bg-green-50"
+              : "border-studify-green shadow-lg scale-105 bg-gradient-to-b from-green-50 to-white"
+          }`}
+        >
+          {currentPlan === "quarterly" ? (
+            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-studify-green text-white px-4 py-1">Seu Plano</Badge>
+            </div>
+          ) : (
+            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-studify-green text-white px-4 py-1">Mais Popular</Badge>
+            </div>
+          )}
+
+          <CardHeader className="text-center pb-4">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-full bg-studify-green text-white">
+                <Star className="h-6 w-6" />
+              </div>
+            </div>
+
+            <CardTitle className="text-xl">Trimestral</CardTitle>
+            <CardDescription className="text-sm">Melhor custo-benefício</CardDescription>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-3xl font-bold">R$ 24.90</span>
+                <span className="text-gray-500">/mês</span>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="text-sm text-gray-400 line-through">De R$ 29.90</span>
+                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                  Economize 17%
+                </Badge>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-2">Cobrado a cada 3 meses (R$ 74,70)</p>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <ul className="space-y-3 mb-6">
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Acesso completo ao assistente Studo</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Geração ilimitada de resumos</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Cronograma personalizado</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Simulados e exercícios</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Suporte prioritário</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Relatórios de progresso avançados</span>
+              </li>
+            </ul>
+
+            {(() => {
+              const config = getButtonConfig("quarterly")
+              return (
+                <button
+                  className={`w-full py-2 px-4 rounded-md transition-colors disabled:opacity-50 ${
+                    config.variant === "studify"
+                      ? "bg-studify-green hover:bg-studify-green/90 text-white"
+                      : config.variant === "secondary"
+                        ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                        : config.variant === "outline"
+                          ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                          : "bg-gray-900 hover:bg-gray-800 text-white"
+                  }`}
+                  onClick={() => {
+                    console.log("🖱️ CLIQUE DETECTADO! Plano: quarterly")
+                    handleSubscribe("quarterly")
+                  }}
+                  disabled={config.disabled || loading === "quarterly"}
+                >
+                  {loading === "quarterly" ? (
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processando...
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      {config.icon}
+                      {config.text}
+                    </div>
+                  )}
+                </button>
+              )
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* PLANO ANUAL */}
+        <Card
+          className={`relative transition-all duration-200 hover:shadow-lg ${
+            currentPlan === "yearly" ? "border-studify-green bg-green-50" : "border-gray-200 hover:border-gray-300"
+          }`}
+        >
+          {currentPlan === "yearly" && (
+            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-studify-green text-white px-4 py-1">Seu Plano</Badge>
+            </div>
+          )}
+
+          <CardHeader className="text-center pb-4">
+            <div className="flex justify-center mb-4">
+              <div
+                className={`p-3 rounded-full ${
+                  currentPlan === "yearly" ? "bg-studify-green text-white" : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                <Crown className="h-6 w-6" />
+              </div>
+            </div>
+
+            <CardTitle className="text-xl">Anual</CardTitle>
+            <CardDescription className="text-sm">Máxima economia</CardDescription>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-3xl font-bold">R$ 19.90</span>
+                <span className="text-gray-500">/mês</span>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="text-sm text-gray-400 line-through">De R$ 29.90</span>
+                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                  Economize 33%
+                </Badge>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-2">Cobrado anualmente (R$ 238,80)</p>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <ul className="space-y-3 mb-6">
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Acesso completo ao assistente Studo</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Geração ilimitada de resumos</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Cronograma personalizado</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Simulados e exercícios</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Suporte prioritário</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Relatórios de progresso avançados</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Acesso antecipado a novas funcionalidades</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="h-4 w-4 text-studify-green flex-shrink-0 mt-0.5" />
+                <span className="text-sm">Consultoria personalizada mensal</span>
+              </li>
+            </ul>
+
+            {(() => {
+              const config = getButtonConfig("yearly")
+              return (
+                <button
+                  className={`w-full py-2 px-4 rounded-md transition-colors disabled:opacity-50 ${
+                    config.variant === "studify"
+                      ? "bg-studify-green hover:bg-studify-green/90 text-white"
+                      : config.variant === "secondary"
+                        ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                        : config.variant === "outline"
+                          ? "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                          : "bg-gray-900 hover:bg-gray-800 text-white"
+                  }`}
+                  onClick={() => {
+                    console.log("🖱️ CLIQUE DETECTADO! Plano: yearly")
+                    handleSubscribe("yearly")
+                  }}
+                  disabled={config.disabled || loading === "yearly"}
+                >
+                  {loading === "yearly" ? (
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processando...
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      {config.icon}
+                      {config.text}
+                    </div>
+                  )}
+                </button>
+              )
+            })()}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

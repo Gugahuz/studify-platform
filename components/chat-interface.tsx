@@ -3,7 +3,7 @@
 import { useChat } from "ai/react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { AvatarWithProfile } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SendHorizontal, Loader2 } from "lucide-react"
 import { useEffect } from "react"
 import { useUserData } from "@/hooks/use-user-data"
@@ -52,7 +52,12 @@ export function ChatInterface() {
                   <img src="/images/studo-mascot.png" alt="Studo" className="h-10 w-10 object-contain" />
                 </div>
               ) : (
-                <AvatarWithProfile userProfile={userProfile} size="md" className="flex-shrink-0" />
+                <Avatar className="h-12 w-12 flex-shrink-0">
+                  <AvatarImage src={userProfile?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-blue-600 text-white">
+                    {userProfile?.full_name?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
               )}
               <div
                 className={`rounded-lg p-3 ${
@@ -104,5 +109,5 @@ export function ChatInterface() {
   )
 }
 
-// Also export as default for compatibility
+// Export as default for compatibility
 export default ChatInterface

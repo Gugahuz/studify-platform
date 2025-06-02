@@ -4,41 +4,58 @@ import { supabase } from "@/lib/supabase"
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("🛒 Creating checkout session...")
+    console.log("🛒 Iniciando criação de sessão de checkout...")
 
     // Verificar se as chaves estão configuradas
     if (!process.env.STRIPE_SECRET_KEY) {
-      console.error("❌ STRIPE_SECRET_KEY not configured")
-      return NextResponse.json({ error: "Stripe not configured" }, { status: 500 })
+      console.error("❌ STRIPE_SECRET_KEY não configurada")
+      return NextResponse.json({ error: "Stripe não configurado" }, { status: 500 })
+    }
+
+    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+      console.error("❌ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY não configurada")
+      return NextResponse.json({ error: "Chave pública do Stripe não configurada" }, { status: 500 })
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: "2024-06-20",
     })
 
-    const { priceId, userId } = await req.json()
+    const body = await req.json()
+    console.log("📋 Dados recebidos:", body)
+
+    const { priceId, userId } = body
 
     if (!priceId || !userId) {
-      console.error("❌ Missing required fields:", { priceId: !!priceId, userId: !!userId })
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      console.error("❌ Campos obrigatórios ausentes:", { priceId: !!priceId, userId: !!userId })
+      return NextResponse.json({ error: "Campos obrigatórios ausentes" }, { status: 400 })
     }
 
-    console.log("📋 Checkout request:", { priceId, userId })
+    console.log("📋 Dados do checkout:", { priceId, userId })
 
-    // Get user profile
+    // Verificar se o preço existe no Stripe
+    try {
+      const price = await stripe.prices.retrieve(priceId)
+      console.log("✅ Preço encontrado:", { id: price.id, amount: price.unit_amount, currency: price.currency })
+    } catch (priceError) {
+      console.error("❌ Preço não encontrado:", priceError)
+      return NextResponse.json({ error: "ID de preço inválido" }, { status: 400 })
+    }
+
+    // Buscar perfil do usuário
     const { data: profile, error: profileError } = await supabase.from("profiles").select("*").eq("id", userId).single()
 
     if (profileError || !profile) {
-      console.error("❌ User not found:", profileError)
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      console.error("❌ Usuário não encontrado:", profileError)
+      return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 })
     }
 
-    console.log("👤 User found:", { email: profile.email, name: profile.nome })
+    console.log("👤 Usuário encontrado:", { email: profile.email, name: profile.nome })
 
-    // Create or get Stripe customer
+    // Criar ou obter cliente do Stripe
     let customerId: string
 
-    // Check if user already has a subscription with customer ID
+    // Verificar se o usuário já tem uma assinatura com ID do cliente
     const { data: existingSubscription } = await supabase
       .from("subscriptions")
       .select("stripe_customer_id")
@@ -47,9 +64,9 @@ export async function POST(req: NextRequest) {
 
     if (existingSubscription?.stripe_customer_id) {
       customerId = existingSubscription.stripe_customer_id
-      console.log("🔄 Using existing customer:", customerId)
+      console.log("🔄 Usando cliente existente:", customerId)
     } else {
-      // Create new customer
+      // Criar novo cliente
       const customer = await stripe.customers.create({
         email: profile.email,
         name: profile.nome,
@@ -58,10 +75,10 @@ export async function POST(req: NextRequest) {
         },
       })
       customerId = customer.id
-      console.log("✨ Created new customer:", customerId)
+      console.log("✨ Novo cliente criado:", customerId)
     }
 
-    // Create checkout session
+    // Criar sessão de checkout
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
@@ -72,22 +89,27 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "subscription",
-      success_url: `https://v0-studify0106.vercel.app/dashboard/assinatura?success=true`,
+      success_url: `https://v0-studify0106.vercel.app/dashboard/assinatura?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://v0-studify0106.vercel.app/dashboard/assinatura?canceled=true`,
       metadata: {
         userId: userId,
       },
+      allow_promotion_codes: true,
+      billing_address_collection: "required",
     })
 
-    console.log("✅ Checkout session created:", session.id)
+    console.log("✅ Sessão de checkout criada:", { id: session.id, url: session.url })
 
-    return NextResponse.json({ sessionId: session.id })
+    return NextResponse.json({
+      sessionId: session.id,
+      url: session.url,
+    })
   } catch (error) {
-    console.error("❌ Error creating checkout session:", error)
+    console.error("❌ Erro ao criar sessão de checkout:", error)
     return NextResponse.json(
       {
-        error: "Failed to create checkout session",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: "Falha ao criar sessão de checkout",
+        details: error instanceof Error ? error.message : "Erro desconhecido",
       },
       { status: 500 },
     )

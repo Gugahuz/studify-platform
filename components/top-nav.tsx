@@ -7,7 +7,7 @@ import { Bell, LogOut, Loader2, User, Settings, ChevronDown } from "lucide-react
 import { signOut } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useUserData } from "@/hooks/use-user-data"
-import { AvatarWithProfile } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function TopNav() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -127,11 +127,13 @@ export function TopNav() {
               disabled={isLoggingOut}
               onClick={toggleDropdown}
             >
-              <AvatarWithProfile
-                userProfile={userProfile}
-                size="md"
-                className="h-8 w-8 border border-studify-green/20"
-              />
+              <Avatar className="h-8 w-8 border border-studify-green/20">
+                <AvatarImage
+                  src={userProfile?.avatar_url || "/placeholder.svg"}
+                  alt={userProfile?.nome || "Avatar do usuário"}
+                />
+                <AvatarFallback>{getInitial()}</AvatarFallback>
+              </Avatar>
               <ChevronDown className={`h-4 w-4 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
             </Button>
 
