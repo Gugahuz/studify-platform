@@ -8,6 +8,7 @@ import { signOut } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useUserData } from "@/hooks/use-user-data"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Link from "next/link"
 
 export function TopNav() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -106,14 +107,19 @@ export function TopNav() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-studify-gray/20 bg-studify-white">
-      <div className="container flex h-16 items-center justify-between px-4">
-        <div className="flex items-center -ml-2">
-          <h1 className="text-xl font-bold text-studify-green">studify</h1>
+      <div className="container flex h-16 items-center px-4">
+        <div className="flex items-center">
+          <Link
+            href="/dashboard"
+            className="text-xl font-bold text-studify-green hover:text-studify-green/80 transition-colors"
+          >
+            studify
+          </Link>
         </div>
 
         <div className="flex-1"></div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 ml-auto">
           {/* Botão de notificações */}
           <Button variant="ghost" size="icon" disabled={isLoggingOut}>
             <Bell className="h-5 w-5" />
