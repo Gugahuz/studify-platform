@@ -4,19 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Check,
-  CreditCard,
-  Crown,
-  Loader2,
-  Star,
-  Zap,
-  Shield,
-  AlertCircle,
-  ArrowUp,
-  ArrowDown,
-  CheckCircle,
-} from "lucide-react"
+import { Check, CreditCard, Crown, Loader2, Star, Zap, Shield, AlertCircle, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -393,24 +381,25 @@ export default function AssinaturaPage() {
 
       {/* Modal de Checkout Embarcado */}
       <Dialog open={showCheckoutModal} onOpenChange={setShowCheckoutModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Finalizar Pagamento
-            </DialogTitle>
-            <DialogDescription>Complete seu pagamento de forma segura</DialogDescription>
+        <DialogContent className="max-w-lg max-h-[95vh] overflow-y-auto">
+          <DialogHeader className="pt-6">
+            <DialogTitle className="text-center text-xl font-semibold text-gray-900">Finalizar Assinatura</DialogTitle>
+            <DialogDescription className="text-center text-gray-600">
+              Complete seu pagamento de forma rápida e segura
+            </DialogDescription>
           </DialogHeader>
 
           {selectedPlan && (
-            <EmbeddedCheckout
-              priceId={selectedPlan.priceId}
-              userId={user.id}
-              planName={selectedPlan.name}
-              amount={selectedPlan.amount}
-              onSuccess={handlePaymentSuccess}
-              onCancel={() => setShowCheckoutModal(false)}
-            />
+            <div className="pb-6">
+              <EmbeddedCheckout
+                priceId={selectedPlan.priceId}
+                userId={user.id}
+                planName={selectedPlan.name}
+                amount={selectedPlan.amount}
+                onSuccess={handlePaymentSuccess}
+                onCancel={() => setShowCheckoutModal(false)}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -487,15 +476,6 @@ export default function AssinaturaPage() {
           </CardHeader>
         </Card>
       )}
-
-      {/* Status de Sucesso */}
-      <Alert className="mb-6 border-green-200 bg-green-50">
-        <CheckCircle className="h-4 w-4 text-green-600" />
-        <AlertDescription className="text-green-700">
-          <strong>✅ Checkout embarcado ativo!</strong> Agora o pagamento é processado diretamente na plataforma, sem
-          redirecionamentos.
-        </AlertDescription>
-      </Alert>
 
       {/* DEBUG E ERRO */}
       {error && (

@@ -8,58 +8,71 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("🔄 Criando Payment Intent...")
-
     const { priceId, userId } = await req.json()
 
+    console.log("🔄 Criando Payment Intent para:", { priceId, userId })
+
     if (!priceId || !userId) {
-      return NextResponse.json({ error: "Campos obrigatórios ausentes" }, { status: 400 })
+      return NextResponse.json({ error: "Price ID e User ID são obrigatórios" }, { status: 400 })
     }
 
-    // Buscar informações do preço
+    // Buscar informações do preço no Stripe
     const price = await stripe.prices.retrieve(priceId)
-    console.log("💰 Preço encontrado:", { id: price.id, amount: price.unit_amount })
+    console.log("💰 Preço encontrado:", price)
 
     // Buscar perfil do usuário
     const { data: profile, error: profileError } = await supabase.from("profiles").select("*").eq("id", userId).single()
 
     if (profileError || !profile) {
-      console.error("❌ Usuário não encontrado:", profileError)
+      console.error("❌ Erro ao buscar perfil:", profileError)
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 })
     }
 
-    // Criar ou obter cliente do Stripe
-    let customerId: string
+    // Verificar se o usuário já tem um customer ID no Stripe
+    let customerId = profile.stripe_customer_id
 
-    const { data: existingSubscription } = await supabase
-      .from("subscriptions")
-      .select("stripe_customer_id")
-      .eq("user_id", userId)
-      .single()
+    // Se não tem customer ID, criar um novo customer
+    if (!customerId) {
+      console.log("👤 Criando novo customer no Stripe...")
+      try {
+        const customer = await stripe.customers.create({
+          email: profile.email,
+          name: profile.nome || undefined,
+          metadata: {
+            userId: userId,
+          },
+        })
 
-    if (existingSubscription?.stripe_customer_id) {
-      customerId = existingSubscription.stripe_customer_id
-      console.log("🔄 Usando cliente existente:", customerId)
+        customerId = customer.id
+
+        // Salvar customer ID no perfil
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ stripe_customer_id: customerId })
+          .eq("id", userId)
+
+        if (updateError) {
+          console.error("❌ Erro ao salvar customer ID:", updateError)
+        }
+
+        console.log("✅ Customer criado:", customerId)
+      } catch (stripeError) {
+        console.error("❌ Erro ao criar customer no Stripe:", stripeError)
+        return NextResponse.json({ error: "Erro ao criar customer no Stripe" }, { status: 500 })
+      }
     } else {
-      const customer = await stripe.customers.create({
-        email: profile.email,
-        name: profile.nome,
-        metadata: {
-          userId: userId,
-        },
-      })
-      customerId = customer.id
-      console.log("✨ Novo cliente criado:", customerId)
+      console.log("✅ Customer existente:", customerId)
     }
 
     // Criar Payment Intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: price.unit_amount!,
-      currency: price.currency,
+      currency: price.currency || "brl",
       customer: customerId,
       metadata: {
         userId: userId,
         priceId: priceId,
+        planType: getPlanTypeFromPriceId(priceId),
       },
       automatic_payment_methods: {
         enabled: true,
@@ -76,10 +89,21 @@ export async function POST(req: NextRequest) {
     console.error("❌ Erro ao criar Payment Intent:", error)
     return NextResponse.json(
       {
-        error: "Falha ao criar Payment Intent",
+        error: "Erro interno do servidor",
         details: error instanceof Error ? error.message : "Erro desconhecido",
       },
       { status: 500 },
     )
   }
+}
+
+function getPlanTypeFromPriceId(priceId: string): string {
+  // Esta função deve mapear o priceId para o tipo de plano
+  // Por enquanto, vamos usar uma lógica simples baseada no ID
+  if (priceId.includes("monthly")) return "monthly"
+  if (priceId.includes("quarterly")) return "quarterly"
+  if (priceId.includes("yearly")) return "yearly"
+
+  // Fallback - você pode ajustar isso baseado nos seus price IDs reais
+  return "monthly"
 }
