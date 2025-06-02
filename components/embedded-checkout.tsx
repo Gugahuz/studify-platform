@@ -379,7 +379,6 @@ function CheckoutForm({ priceId, userId, planName, amount, onSuccess, onCancel }
               <span>{cardError}</span>
             </div>
           )}
-          <p className="text-xs text-gray-500">💳 Teste: 4242 4242 4242 4242 | Data: qualquer futura | CVC: 123</p>
         </div>
 
         <Separator />
