@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 99.8%;
+    --foreground: 0 0% 41.6%;
+
+    --card: 0 0% 99.8%;
+    --card-foreground: 0 0% 41.6%;
+
+    --popover: 0 0% 99.8%;
+    --popover-foreground: 0 0% 41.6%;
+
+    --primary: 100 60% 28%;
+    --primary-foreground: 0 0% 99.8%;
+
+    --secondary: 100 80% 35%;
+    --secondary-foreground: 0 0% 99.8%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 41.6%;
+
+    --accent: 100 80% 35%;
+    --accent-foreground: 0 0% 99.8%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 99.8%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 100 60% 28%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 10%;
+    --foreground: 0 0% 99.8%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 99.8%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 99.8%;
+
+    --primary: 100 80% 35%;
+    --primary-foreground: 0 0% 10%;
+
+    --secondary: 100 60% 28%;
+    --secondary-foreground: 0 0% 99.8%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 100 80% 35%;
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 99.8%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 100 80% 35%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.studify-logo {
+  font-family: "Baloo 2", cursive;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
