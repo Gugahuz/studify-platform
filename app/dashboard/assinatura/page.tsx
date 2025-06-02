@@ -4,10 +4,31 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Check, CreditCard, Crown, Loader2, Star, Zap, Shield, AlertCircle, ArrowUp, ArrowDown } from "lucide-react"
+import {
+  Check,
+  CreditCard,
+  Crown,
+  Loader2,
+  Star,
+  Zap,
+  Shield,
+  AlertCircle,
+  ArrowUp,
+  ArrowDown,
+  ExternalLink,
+  CheckCircle,
+} from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function AssinaturaPage() {
   const [loading, setLoading] = useState<string | null>(null)
@@ -16,6 +37,11 @@ export default function AssinaturaPage() {
   const [currentPlan, setCurrentPlan] = useState<string | null>(null)
   const [expiryDate, setExpiryDate] = useState<string | null>(null)
   const [userLoading, setUserLoading] = useState(true)
+  const [stripeProducts, setStripeProducts] = useState<any>(null)
+  const [productsLoading, setProductsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
 
   // Buscar dados do usuário
   useEffect(() => {
@@ -80,8 +106,41 @@ export default function AssinaturaPage() {
     getUser()
   }, [])
 
-  // Função para processar assinatura - VERSÃO SIMPLIFICADA
-  const handleSubscribe = (planId: string) => {
+  // Buscar produtos do Stripe
+  useEffect(() => {
+    const fetchStripeProducts = async () => {
+      try {
+        console.log("🔍 Buscando produtos do Stripe...")
+        setError(null)
+
+        const response = await fetch("/api/stripe-products")
+
+        if (!response.ok) {
+          throw new Error(`Erro ao buscar produtos: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log("✅ Produtos do Stripe carregados:", data)
+
+        if (!data.success) {
+          throw new Error(data.error || "Erro ao carregar produtos")
+        }
+
+        setStripeProducts(data)
+      } catch (error) {
+        console.error("❌ Erro ao carregar produtos do Stripe:", error)
+        setError(error instanceof Error ? error.message : "Erro ao carregar produtos")
+        toast.error("Erro ao carregar produtos. Tente novamente.")
+      } finally {
+        setProductsLoading(false)
+      }
+    }
+
+    fetchStripeProducts()
+  }, [])
+
+  // Função para processar assinatura com Stripe REAL
+  const handleSubscribe = async (planId: string) => {
     console.log("🎯 BOTÃO CLICADO! handleSubscribe chamado com planId:", planId)
     console.log("👤 Usuário atual:", user?.id)
 
@@ -91,95 +150,83 @@ export default function AssinaturaPage() {
       return
     }
 
-    processSubscription(planId)
+    await processStripeCheckout(planId)
   }
 
-  // Função separada para processar a assinatura
-  const processSubscription = async (planId: string) => {
+  // Função para processar checkout real do Stripe
+  const processStripeCheckout = async (planId: string) => {
     try {
       setLoading(planId)
-      console.log(`🚀 Iniciando assinatura do plano: ${planId} para usuário: ${user.id}`)
+      console.log(`🚀 Iniciando checkout do Stripe para plano: ${planId}`)
+      console.log("📊 Estado atual dos produtos:", stripeProducts)
 
-      // Simular processamento de pagamento
-      toast.loading("Processando pagamento...", { id: "payment" })
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Calcular data de expiração baseada no plano
-      const now = new Date()
-      const expiryDate = new Date()
-
-      if (planId === "monthly") {
-        expiryDate.setMonth(now.getMonth() + 1)
-      } else if (planId === "quarterly") {
-        expiryDate.setMonth(now.getMonth() + 3)
-      } else if (planId === "yearly") {
-        expiryDate.setFullYear(now.getFullYear() + 1)
+      // Verificar se os produtos foram carregados
+      if (!stripeProducts || !stripeProducts.success) {
+        throw new Error("Produtos do Stripe não foram carregados corretamente")
       }
 
-      console.log("📅 Data de expiração calculada:", expiryDate)
+      // Obter o Price ID correto baseado no plano
+      const priceId = getPriceIdForPlan(planId)
+      console.log("💰 Price ID obtido:", priceId)
 
-      // Atualizar status premium no banco de dados
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          is_premium: true,
-          premium_expires_at: expiryDate.toISOString(),
-        })
-        .eq("id", user.id)
-
-      if (profileError) {
-        throw new Error(`Erro ao atualizar perfil: ${profileError.message}`)
+      if (!priceId) {
+        throw new Error(`Price ID não encontrado para o plano ${planId}. Verifique a configuração do Stripe.`)
       }
 
-      console.log("✅ Perfil atualizado com status premium")
+      console.log("💳 Price ID:", priceId)
 
-      // Cancelar assinatura anterior se existir
-      await supabase.from("subscriptions").update({ status: "canceled" }).eq("user_id", user.id).eq("status", "active")
-
-      // Registrar nova assinatura no banco
-      const subscriptionId = `sub_${planId}_${Date.now()}`
-      const { error: subscriptionError } = await supabase.from("subscriptions").insert({
-        user_id: user.id,
-        stripe_subscription_id: subscriptionId,
-        stripe_customer_id: `cus_sim_${user.id}`,
-        status: "active",
-        plan_type: planId,
-        current_period_start: now.toISOString(),
-        current_period_end: expiryDate.toISOString(),
+      // Criar sessão de checkout
+      const response = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          priceId: priceId,
+          userId: user.id,
+        }),
       })
 
-      if (subscriptionError) {
-        throw new Error(`Erro ao registrar assinatura: ${subscriptionError.message}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Erro HTTP: ${response.status}`)
       }
 
-      console.log("✅ Assinatura registrada no banco")
+      const data = await response.json()
+      console.log("✅ Sessão de checkout criada:", data.sessionId)
 
-      // Registrar pagamento simulado
-      const amount = planId === "monthly" ? 2990 : planId === "quarterly" ? 7470 : 23880
-      await supabase.from("payments").insert({
-        user_id: user.id,
-        stripe_payment_intent_id: `pi_sim_${Date.now()}`,
-        amount,
-        currency: "brl",
-        status: "succeeded",
-      })
-
-      console.log("✅ Pagamento registrado")
-
-      // Atualizar estado local
-      setIsPremium(true)
-      setCurrentPlan(planId)
-      setExpiryDate(expiryDate.toISOString())
-
-      toast.dismiss("payment")
-      toast.success("🎉 Assinatura realizada com sucesso! Bem-vindo ao Premium!")
+      // Mostrar modal com link para checkout
+      if (data.url) {
+        console.log("🔄 URL de checkout recebida:", data.url)
+        setCheckoutUrl(data.url)
+        setShowCheckoutModal(true)
+        toast.success("Sessão de checkout criada! Clique para continuar.")
+      } else {
+        throw new Error("URL de checkout não recebida")
+      }
     } catch (error) {
-      console.error("❌ Erro ao processar assinatura:", error)
-      toast.dismiss("payment")
-      toast.error(error instanceof Error ? error.message : "Erro ao processar assinatura")
+      console.error("❌ Erro ao processar checkout:", error)
+      toast.error(error instanceof Error ? error.message : "Erro ao processar pagamento")
     } finally {
       setLoading(null)
     }
+  }
+
+  // Função para obter Price ID baseado no plano
+  const getPriceIdForPlan = (planId: string): string | null => {
+    if (!stripeProducts?.success || !stripeProducts?.products) {
+      console.error("❌ Produtos do Stripe não carregados")
+      return null
+    }
+
+    const planProducts = stripeProducts.products[planId]
+
+    if (Array.isArray(planProducts) && planProducts.length > 0) {
+      return planProducts[0].id
+    }
+
+    console.error(`❌ Price ID não encontrado para o plano: ${planId}`)
+    return null
   }
 
   // Cancelar assinatura
@@ -299,11 +346,31 @@ export default function AssinaturaPage() {
     }
   }
 
-  if (userLoading) {
+  // Verificar se há parâmetros de sucesso/cancelamento na URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const success = urlParams.get("success")
+    const canceled = urlParams.get("canceled")
+
+    if (success === "true") {
+      toast.success("🎉 Pagamento realizado com sucesso! Bem-vindo ao Premium!")
+      // Limpar URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+      // Recarregar dados do usuário
+      window.location.reload()
+    } else if (canceled === "true") {
+      toast.error("Pagamento cancelado. Você pode tentar novamente a qualquer momento.")
+      // Limpar URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
+
+  if (userLoading || productsLoading) {
     return (
       <div className="container mx-auto p-4">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Carregando...</span>
         </div>
       </div>
     )
@@ -320,12 +387,68 @@ export default function AssinaturaPage() {
     )
   }
 
+  // Verificar se os produtos estão disponíveis
+  if (!stripeProducts?.success) {
+    return (
+      <div className="container mx-auto p-4">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Erro ao carregar produtos. Tente recarregar a página.</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto p-4 max-w-7xl">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">Assinatura Premium</h1>
         <p className="text-gray-600">Desbloqueie todo o potencial do Studify</p>
       </div>
+
+      {/* Modal de Checkout */}
+      <Dialog open={showCheckoutModal} onOpenChange={setShowCheckoutModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Finalizar Pagamento
+            </DialogTitle>
+            <DialogDescription>
+              Sua sessão de checkout foi criada com sucesso! Clique no botão abaixo para ser redirecionado ao Stripe e
+              finalizar seu pagamento.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Checkout criado com sucesso!</span>
+              </div>
+              <p className="text-sm text-green-600 mt-1">
+                Você será redirecionado para uma página segura do Stripe para inserir os dados do cartão.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCheckoutModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (checkoutUrl) {
+                  window.open(checkoutUrl, "_blank")
+                  setShowCheckoutModal(false)
+                }
+              }}
+              className="flex items-center gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Ir para Stripe Checkout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isPremium ? (
         <Card className="mb-8 border-studify-green bg-gradient-to-r from-green-50 to-emerald-50">
@@ -400,7 +523,30 @@ export default function AssinaturaPage() {
         </Card>
       )}
 
-      {/* PLANOS DE ASSINATURA - VERSÃO CORRIGIDA */}
+      {/* Status de Sucesso */}
+      <Alert className="mb-6 border-green-200 bg-green-50">
+        <CheckCircle className="h-4 w-4 text-green-600" />
+        <AlertDescription className="text-green-700">
+          <strong>✅ Sistema funcionando perfeitamente!</strong> O checkout está sendo criado com sucesso. Após clicar
+          em "Assinar agora", você verá um modal para ir ao Stripe.
+        </AlertDescription>
+      </Alert>
+
+      {/* DEBUG E ERRO */}
+      {error && (
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Erro:</strong> {error}
+            <br />
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}>
+              Recarregar Página
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* PLANOS DE ASSINATURA */}
       <div className="grid gap-8 md:grid-cols-3 mb-8">
         {/* PLANO MENSAL */}
         <Card

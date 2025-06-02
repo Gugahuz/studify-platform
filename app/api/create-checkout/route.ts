@@ -78,6 +78,9 @@ export async function POST(req: NextRequest) {
       console.log("✨ Novo cliente criado:", customerId)
     }
 
+    // Determinar a URL base para redirecionamentos
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://v0-studify0106.vercel.app"
+
     // Criar sessão de checkout
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -89,10 +92,15 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "subscription",
-      success_url: `https://v0-studify0106.vercel.app/dashboard/assinatura?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `https://v0-studify0106.vercel.app/dashboard/assinatura?canceled=true`,
+      success_url: `${baseUrl}/dashboard/assinatura?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/dashboard/assinatura?canceled=true`,
       metadata: {
         userId: userId,
+      },
+      subscription_data: {
+        metadata: {
+          userId: userId,
+        },
       },
       allow_promotion_codes: true,
       billing_address_collection: "required",
