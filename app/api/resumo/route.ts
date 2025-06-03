@@ -40,7 +40,7 @@ Crie um resumo conciso e objetivo do seguinte conteúdo educacional. Foque nos p
 ${texto}`
 
     const result = await generateText({
-      model: openai("gpt-4-turbo", {
+      model: openai("gpt-4o-mini", {
         apiKey: process.env.OPENAI_API_KEY,
       }),
       prompt,

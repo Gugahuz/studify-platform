@@ -26,22 +26,9 @@ export function AvatarWithProfile({ userProfile, size = "md", className = "" }: 
     return "U"
   }
 
-  // Use a safe placeholder URL instead of potentially broken blob URLs
-  const avatarUrl =
-    userProfile?.avatar_url && userProfile.avatar_url.startsWith("http")
-      ? userProfile.avatar_url
-      : `/placeholder.svg?height=40&width=40&text=${getInitial()}`
-
   return (
     <Avatar className={`${sizeClass} ${className}`}>
-      <AvatarImage
-        src={avatarUrl || "/placeholder.svg"}
-        alt={userProfile?.nome || "Avatar do usuário"}
-        onError={(e) => {
-          // If image fails to load, hide it and show fallback
-          e.currentTarget.style.display = "none"
-        }}
-      />
+      <AvatarImage src={userProfile?.avatar_url || "/placeholder.svg"} alt={userProfile?.nome || "Avatar do usuário"} />
       <AvatarFallback>{getInitial()}</AvatarFallback>
     </Avatar>
   )
