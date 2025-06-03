@@ -10,12 +10,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Phone, Mail, GraduationCap, Loader2, LogOut, ArrowLeft } from "lucide-react"
+import { User, Phone, Mail, GraduationCap, Loader2, LogOut, ArrowLeft, Key } from "lucide-react"
 import { useUserData } from "@/hooks/use-user-data"
 import { useToast } from "@/hooks/use-toast"
 import { supabase, signOut } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { ChangePasswordModal } from "@/components/change-password-modal"
+import { ComingSoonHover } from "@/components/coming-soon-hover"
 
 // Add this after the imports
 const notificationStyles = `
@@ -54,6 +56,7 @@ export default function PerfilPage() {
     escolaridade: "",
   })
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
 
   // Initialize form data when user profile loads
   useEffect(() => {
@@ -578,7 +581,7 @@ export default function PerfilPage() {
                           size="sm"
                           onClick={handleRemoveAvatar}
                           disabled={isUpdating}
-                          className="text-xs text-red-600 hover:text-red-700"
+                          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           Remover
                         </Button>
@@ -601,6 +604,7 @@ export default function PerfilPage() {
                       onChange={handleInputChange}
                       placeholder="Seu nome completo"
                       className={validationErrors.nome ? "border-red-500" : ""}
+                      maxLength={30}
                     />
                     {validationErrors.nome && <p className="text-xs text-red-500">{validationErrors.nome}</p>}
                   </div>
@@ -612,10 +616,12 @@ export default function PerfilPage() {
                       name="email"
                       type="email"
                       value={formData.email}
-                      onChange={handleInputChange}
                       placeholder="seu@email.com"
-                      className={validationErrors.email ? "border-red-500" : ""}
+                      className="bg-gray-50 cursor-not-allowed"
+                      readOnly
+                      disabled
                     />
+                    <p className="text-xs text-gray-500">O e-mail não pode ser alterado</p>
                     {validationErrors.email && <p className="text-xs text-red-500">{validationErrors.email}</p>}
                   </div>
 
@@ -647,6 +653,19 @@ export default function PerfilPage() {
                         <SelectItem value="pos-graduando">Pós-graduando</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Senha</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowChangePasswordModal(true)}
+                      className="justify-start"
+                    >
+                      <Key className="h-4 w-4 mr-2" />
+                      Alterar senha
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -708,63 +727,65 @@ export default function PerfilPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-blue-100">
-              <CardHeader>
-                <CardTitle>Desempenho</CardTitle>
-                <CardDescription>Seu progresso nos estudos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Progresso geral</span>
-                      <span className="text-sm font-medium">65%</span>
+            <ComingSoonHover>
+              <Card className="border-blue-100">
+                <CardHeader>
+                  <CardTitle>Desempenho</CardTitle>
+                  <CardDescription>Seu progresso nos estudos</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">Progresso geral</span>
+                        <span className="text-sm font-medium">65%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "65%" }}></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "65%" }}></div>
-                    </div>
-                  </div>
 
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Aulas concluídas</span>
-                      <span className="text-sm font-medium">24/36</span>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">Aulas concluídas</span>
+                        <span className="text-sm font-medium">24/36</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-green-500 h-2.5 rounded-full" style={{ width: "67%" }}></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div className="bg-green-500 h-2.5 rounded-full" style={{ width: "67%" }}></div>
-                    </div>
-                  </div>
 
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Simulados realizados</span>
-                      <span className="text-sm font-medium">8/12</span>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">Simulados realizados</span>
+                        <span className="text-sm font-medium">8/12</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-purple-500 h-2.5 rounded-full" style={{ width: "75%" }}></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div className="bg-purple-500 h-2.5 rounded-full" style={{ width: "75%" }}></div>
-                    </div>
-                  </div>
 
-                  <div className="pt-4">
-                    <h4 className="text-sm font-medium mb-2">Características do estudante</h4>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                        Consistente
-                      </span>
-                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                        Organizado
-                      </span>
-                      <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                        Analítico
-                      </span>
-                      <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                        Dedicado
-                      </span>
+                    <div className="pt-4">
+                      <h4 className="text-sm font-medium mb-2">Características do estudante</h4>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                          Consistente
+                        </span>
+                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                          Organizado
+                        </span>
+                        <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                          Analítico
+                        </span>
+                        <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                          Dedicado
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </ComingSoonHover>
 
             <Card className="border-red-100">
               <CardHeader>
@@ -795,6 +816,11 @@ export default function PerfilPage() {
           </div>
         </TabsContent>
       </Tabs>
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        userEmail={userProfile.email}
+      />
     </div>
   )
 }

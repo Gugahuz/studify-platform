@@ -345,8 +345,10 @@ export default function CadastroPage() {
                     value={formData.nome}
                     onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                     className="border-studify-gray/30 focus-visible:ring-studify-green"
+                    maxLength={30}
                     required
                   />
+                  <p className="text-xs text-studify-gray">{formData.nome.length}/30 caracteres</p>
                 </div>
 
                 <div className="space-y-2">
