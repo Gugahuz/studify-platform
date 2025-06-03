@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, ArrowLeft, CheckCircle } from "lucide-react"
 import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
 import { supabase, checkUserProfile, createUserProfile } from "@/lib/supabase"
+import { useToastContext } from "@/components/toast-provider"
 
 // Função para formatar telefone
 const formatPhone = (value: string) => {
@@ -33,7 +33,7 @@ export default function CadastroPage() {
     escolaridade: "",
   })
   const router = useRouter()
-  const { toast } = useToast()
+  const toast = useToastContext()
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({
     email: "",
@@ -111,71 +111,43 @@ export default function CadastroPage() {
     try {
       // Validações
       if (!formData.nome.trim()) {
-        toast({
-          title: "Erro no cadastro",
-          description: "O nome é obrigatório.",
-          variant: "destructive",
-        })
+        toast.error("Nome obrigatório", "Por favor, insira seu nome completo.")
         setIsLoading(false)
         return
       }
 
       if (!formData.email.trim()) {
-        toast({
-          title: "Erro no cadastro",
-          description: "O email é obrigatório.",
-          variant: "destructive",
-        })
+        toast.error("Email obrigatório", "Por favor, insira um endereço de email válido.")
         setIsLoading(false)
         return
       }
 
       if (!formData.telefone.trim()) {
-        toast({
-          title: "Erro no cadastro",
-          description: "O telefone é obrigatório.",
-          variant: "destructive",
-        })
+        toast.error("Telefone obrigatório", "Por favor, insira seu número de telefone.")
         setIsLoading(false)
         return
       }
 
       if (!formData.escolaridade) {
-        toast({
-          title: "Erro no cadastro",
-          description: "A escolaridade é obrigatória.",
-          variant: "destructive",
-        })
+        toast.error("Escolaridade obrigatória", "Por favor, selecione seu nível de escolaridade.")
         setIsLoading(false)
         return
       }
 
       if (!formData.senha) {
-        toast({
-          title: "Erro no cadastro",
-          description: "A senha é obrigatória.",
-          variant: "destructive",
-        })
+        toast.error("Senha obrigatória", "Por favor, crie uma senha para sua conta.")
         setIsLoading(false)
         return
       }
 
       if (formData.senha !== formData.confirmarSenha) {
-        toast({
-          title: "Erro no cadastro",
-          description: "As senhas não coincidem.",
-          variant: "destructive",
-        })
+        toast.error("Senhas não coincidem", "As senhas digitadas são diferentes. Verifique e tente novamente.")
         setIsLoading(false)
         return
       }
 
       if (formData.senha.length < 6) {
-        toast({
-          title: "Erro no cadastro",
-          description: "A senha deve ter pelo menos 6 caracteres.",
-          variant: "destructive",
-        })
+        toast.error("Senha muito curta", "A senha deve ter pelo menos 6 caracteres.")
         setIsLoading(false)
         return
       }
@@ -188,11 +160,7 @@ export default function CadastroPage() {
         .single()
 
       if (existingEmail) {
-        toast({
-          title: "Erro no cadastro",
-          description: "Este email já está cadastrado. Tente fazer login.",
-          variant: "destructive",
-        })
+        toast.error("Email já cadastrado", "Este email já possui uma conta. Tente fazer login ou use outro email.")
         setIsLoading(false)
         return
       }
@@ -206,11 +174,7 @@ export default function CadastroPage() {
         .single()
 
       if (existingPhone) {
-        toast({
-          title: "Erro no cadastro",
-          description: "Este telefone já está cadastrado.",
-          variant: "destructive",
-        })
+        toast.error("Telefone já cadastrado", "Este número de telefone já está em uso. Use outro número.")
         setIsLoading(false)
         return
       }
@@ -245,37 +209,29 @@ export default function CadastroPage() {
       const { data, error } = await supabase.auth.signUp(signupData)
 
       if (error) {
-        let errorMessage = "Erro desconhecido no cadastro."
+        const errorMessage = "Erro desconhecido no cadastro."
 
         if (error.message.includes("User already registered")) {
-          errorMessage = "Este email já está cadastrado. Tente fazer login."
+          toast.error("Usuário já existe", "Este email já possui uma conta. Tente fazer login.")
         } else if (error.message.includes("Password should be at least")) {
-          errorMessage = "A senha deve ter pelo menos 6 caracteres."
+          toast.error("Senha inválida", "A senha deve ter pelo menos 6 caracteres.")
         } else if (error.message.includes("Invalid email")) {
-          errorMessage = "Email inválido. Verifique o formato."
+          toast.error("Email inválido", "Por favor, insira um endereço de email válido.")
         } else if (error.message.includes("Signup is disabled")) {
-          errorMessage = "Cadastro temporariamente desabilitado."
+          toast.error("Cadastro indisponível", "O cadastro está temporariamente desabilitado.")
         } else if (error.message.includes("Email rate limit exceeded")) {
-          errorMessage = "Muitas tentativas. Aguarde alguns minutos."
+          toast.error("Limite excedido", "Muitas tentativas de cadastro. Aguarde alguns minutos.")
         } else {
-          errorMessage = error.message
+          toast.error("Erro no cadastro", error.message)
         }
 
-        toast({
-          title: "Erro no cadastro",
-          description: errorMessage,
-          variant: "destructive",
-        })
         setIsLoading(false)
         return
       }
 
       if (data.user) {
         // Mostrar notificação de progresso
-        toast({
-          title: "Processando...",
-          description: "Criando perfil do usuário...",
-        })
+        toast.info("Processando cadastro", "Criando sua conta e perfil de usuário...")
 
         // Aguardar para o trigger funcionar
         await new Promise((resolve) => setTimeout(resolve, 3000))
@@ -302,6 +258,7 @@ export default function CadastroPage() {
 
         // Mostrar popup de sucesso
         setShowSuccessPopup(true)
+        toast.success("Cadastro realizado!", "Sua conta foi criada com sucesso. Redirecionando...")
 
         // Esconder popup após 1 segundo e redirecionar
         setTimeout(() => {

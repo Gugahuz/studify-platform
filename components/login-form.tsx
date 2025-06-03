@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
 import { supabase, logLoginAttempt, checkUserProfile, createUserProfile, attemptTestLogin } from "@/lib/supabase"
+import { useToastContext } from "@/components/toast-provider"
+import { ForgotPasswordModal } from "@/components/forgot-password-modal"
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -23,15 +24,12 @@ export function LoginForm() {
     lembrarMe: false,
   })
   const router = useRouter()
-  const { toast } = useToast()
+  const toast = useToastContext()
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
 
   const handleTestLogin = async () => {
     if (!formData.email || !formData.senha) {
-      toast({
-        title: "Erro",
-        description: "Preencha email e senha.",
-        variant: "destructive",
-      })
+      toast.error("Preencha email e senha.", "Erro")
       return
     }
 
@@ -43,26 +41,15 @@ export function LoginForm() {
       if (result.success && result.user) {
         localStorage.setItem("testUser", JSON.stringify(result.user))
 
-        toast({
-          title: "Login realizado!",
-          description: "Bem-vindo de volta! Redirecionando...",
-        })
+        toast.success("Login realizado!", "Bem-vindo de volta! Redirecionando para o dashboard...")
 
         await new Promise((resolve) => setTimeout(resolve, 1500))
         router.push("/dashboard")
       } else {
-        toast({
-          title: "Erro no login",
-          description: result.error || "Credenciais inválidas.",
-          variant: "destructive",
-        })
+        toast.error("Credenciais inválidas", "Verifique seu email e senha e tente novamente.")
       }
     } catch (error) {
-      toast({
-        title: "Erro inesperado",
-        description: "Erro no login.",
-        variant: "destructive",
-      })
+      toast.error("Erro no login.", "Erro inesperado")
     } finally {
       setIsLoading(false)
     }
@@ -74,21 +61,13 @@ export function LoginForm() {
 
     try {
       if (!formData.email.trim()) {
-        toast({
-          title: "Erro no login",
-          description: "O email é obrigatório.",
-          variant: "destructive",
-        })
+        toast.error("Email obrigatório", "Por favor, insira seu endereço de email.")
         setIsLoading(false)
         return
       }
 
       if (!formData.senha) {
-        toast({
-          title: "Erro no login",
-          description: "A senha é obrigatória.",
-          variant: "destructive",
-        })
+        toast.error("Senha obrigatória", "Por favor, insira sua senha.")
         setIsLoading(false)
         return
       }
@@ -101,24 +80,18 @@ export function LoginForm() {
       if (error) {
         await logLoginAttempt(formData.email, false, undefined, error.message)
 
-        let errorMessage = "Erro desconhecido no login."
+        const errorMessage = "Erro desconhecido no login."
 
         if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Email ou senha incorretos."
+          toast.error("Credenciais incorretas", "Email ou senha estão incorretos. Verifique e tente novamente.")
         } else if (error.message.includes("Email not confirmed")) {
           setShowTestLogin(true)
-          errorMessage = "Email não confirmado. Use a opção alternativa abaixo."
+          toast.warning("Email não confirmado", "Seu email ainda não foi confirmado. Use a opção alternativa abaixo.")
         } else if (error.message.includes("Too many requests")) {
-          errorMessage = "Muitas tentativas. Aguarde alguns minutos."
+          toast.error("Muitas tentativas", "Aguarde alguns minutos antes de tentar novamente.")
         } else {
-          errorMessage = error.message
+          toast.error("Erro no login", error.message)
         }
-
-        toast({
-          title: "Erro no login",
-          description: errorMessage,
-          variant: "destructive",
-        })
         setIsLoading(false)
         return
       }
@@ -144,10 +117,7 @@ export function LoginForm() {
           }
         }
 
-        toast({
-          title: "Login realizado!",
-          description: "Bem-vindo de volta! Redirecionando...",
-        })
+        toast.success("Login realizado com sucesso!", "Redirecionando para o dashboard...")
 
         await new Promise((resolve) => setTimeout(resolve, 1500))
         router.push("/dashboard")
@@ -155,11 +125,7 @@ export function LoginForm() {
     } catch (error) {
       await logLoginAttempt(formData.email, false, undefined, "Erro inesperado")
 
-      toast({
-        title: "Erro inesperado",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
-        variant: "destructive",
-      })
+      toast.error("Ocorreu um erro inesperado. Tente novamente.", "Erro inesperado")
     } finally {
       setIsLoading(false)
     }
@@ -221,9 +187,13 @@ export function LoginForm() {
                 Lembrar de mim
               </Label>
             </div>
-            <Link href="/esqueci-senha" className="text-sm text-studify-green hover:text-studify-green/80">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-sm text-studify-green hover:text-studify-green/80"
+            >
               Esqueceu a senha?
-            </Link>
+            </button>
           </div>
 
           <Button type="submit" className="w-full bg-studify-green hover:bg-studify-green/90" disabled={isLoading}>
@@ -258,6 +228,7 @@ export function LoginForm() {
           </Link>
         </div>
       </CardContent>
+      <ForgotPasswordModal isOpen={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
     </Card>
   )
 }
