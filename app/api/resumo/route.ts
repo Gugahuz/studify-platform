@@ -1,5 +1,4 @@
-import { openai } from "@ai-sdk/openai"
-import { generateText } from "ai"
+import OpenAI from "openai"
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +13,10 @@ export async function POST(req: Request) {
       console.error("OPENAI_API_KEY não encontrada")
       return Response.json({ error: "Configuração da API não encontrada" }, { status: 500 })
     }
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
 
     const basePrompt = `Você é um assistente especializado em criar resumos educacionais claros e objetivos. 
 
@@ -39,15 +42,16 @@ Crie um resumo conciso e objetivo do seguinte conteúdo educacional. Foque nos p
 
 ${texto}`
 
-    const result = await generateText({
-      model: openai("gpt-4-turbo", {
-        apiKey: process.env.OPENAI_API_KEY,
-      }),
-      prompt,
-      maxTokens: tipo === "detalhado" ? 1500 : 800,
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo",
+      messages: [
+        { role: "system", content: basePrompt },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: tipo === "detalhado" ? 1500 : 800,
     })
 
-    return Response.json({ resumo: result.text })
+    return Response.json({ resumo: completion.choices[0].message.content })
   } catch (error) {
     console.error("Erro ao gerar resumo:", error)
     return Response.json({ error: "Erro interno do servidor" }, { status: 500 })
