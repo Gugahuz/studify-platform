@@ -35,11 +35,16 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-tooltip": "^1.0.7",
+    "@radix-ui/react-tabs": "^1.0.4",
     "clsx": "^2.0.0",
-    "tailwind-merge": "^2.2.0"
+    "tailwind-merge": "^2.2.0",
+    "uuid": "^9.0.1",
+    "@ai-sdk/openai": "^1.0.0",
+    "resend": "^3.0.0"
   },
   "devDependencies": {
     "eslint": "^8",
-    "eslint-config-next": "14.0.4"
+    "eslint-config-next": "14.0.4",
+    "@types/uuid": "^9.0.7"
   }
 }
