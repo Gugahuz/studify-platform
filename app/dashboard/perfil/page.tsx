@@ -656,16 +656,18 @@ export default function PerfilPage() {
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label>Senha</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowChangePasswordModal(true)}
-                      className="justify-start"
-                    >
-                      <Key className="h-4 w-4 mr-2" />
-                      Alterar senha
-                    </Button>
+                    <div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowChangePasswordModal(true)}
+                        className="justify-start"
+                      >
+                        <Key className="h-4 w-4 mr-2" />
+                        Alterar senha
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
