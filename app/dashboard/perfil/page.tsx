@@ -377,11 +377,24 @@ export default function PerfilPage() {
 
       console.log("✅ Perfil atualizado com sucesso:", updatedData)
 
-      if (!updatedData || updatedData.length === 0) {
-        console.warn("⚠️ Nenhum registro foi atualizado")
-        throw new Error("Nenhum registro foi atualizado no banco de dados")
-      }
+      // Sincronizar com Supabase Auth se email foi alterado
+      if (formData.email !== userProfile?.email) {
+        console.log("📧 Sincronizando email com Supabase Auth...")
+        try {
+          const { error: emailUpdateError } = await supabase.auth.updateUser({
+            email: formData.email.trim(),
+          })
 
+          if (emailUpdateError) {
+            console.warn("⚠️ Erro ao sincronizar email com Auth:", emailUpdateError)
+            // Não falhar a operação, apenas avisar
+          } else {
+            console.log("✅ Email sincronizado com Supabase Auth")
+          }
+        } catch (error) {
+          console.warn("⚠️ Exceção ao sincronizar email:", error)
+        }
+      }
       // Verify the update was successful
       const { data: verifyData, error: verifyError } = await supabase
         .from("profiles")

@@ -15,18 +15,32 @@ export function useUserData() {
 
     try {
       console.log("🔄 Atualizando dados do usuário...")
+
+      // Primeiro tenta obter usuário da sessão do Supabase
       const {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser()
 
-      if (authError) {
-        throw new Error(`Erro de autenticação: ${authError.message}`)
-      }
+      // Se não houver usuário na sessão do Supabase, verifica o localStorage
+      if (authError || !user) {
+        console.log("⚠️ Usuário não encontrado na sessão do Supabase, verificando localStorage...")
+        const testUser = localStorage.getItem("testUser")
 
-      if (!user) {
+        if (testUser) {
+          const parsedUser = JSON.parse(testUser)
+          console.log("✅ Usuário encontrado no localStorage:", parsedUser)
+
+          setUserProfile(parsedUser)
+          setUserEmail(parsedUser.email || null)
+          setIsLoading(false)
+          return
+        }
+
+        console.log("❌ Usuário não encontrado no localStorage")
         setUserProfile(null)
         setUserEmail(null)
+        setIsLoading(false)
         return
       }
 
@@ -60,19 +74,28 @@ export function useUserData() {
 
         console.log("👤 Carregando dados do usuário...")
 
-        // Obter usuário autenticado
+        // Primeiro tenta obter usuário da sessão do Supabase
         const {
           data: { user },
           error: authError,
         } = await supabase.auth.getUser()
 
-        if (authError) {
-          console.error("❌ Erro de autenticação:", authError.message)
-          throw new Error(`Erro de autenticação: ${authError.message}`)
-        }
+        // Se não houver usuário na sessão do Supabase, verifica o localStorage
+        if (authError || !user) {
+          console.log("⚠️ Usuário não encontrado na sessão do Supabase, verificando localStorage...")
+          const testUser = localStorage.getItem("testUser")
 
-        if (!user) {
-          console.log("❌ Usuário não autenticado")
+          if (testUser) {
+            const parsedUser = JSON.parse(testUser)
+            console.log("✅ Usuário encontrado no localStorage:", parsedUser)
+
+            setUserProfile(parsedUser)
+            setUserEmail(parsedUser.email || null)
+            setIsLoading(false)
+            return
+          }
+
+          console.log("❌ Usuário não encontrado no localStorage")
           setUserProfile(null)
           setUserEmail(null)
           setIsLoading(false)
@@ -152,6 +175,7 @@ export function useUserData() {
         setUserProfile(null)
         setUserEmail(null)
         setIsLoading(false)
+        localStorage.removeItem("testUser") // Limpar localStorage também
       } else if (event === "SIGNED_IN" && session?.user) {
         // Recarregar dados quando usuário faz login
         refreshUserData()

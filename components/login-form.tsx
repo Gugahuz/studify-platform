@@ -12,6 +12,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { supabase, logLoginAttempt, checkUserProfile, createUserProfile, attemptTestLogin } from "@/lib/supabase"
+import { ForgotPasswordModal } from "@/components/forgot-password-modal"
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -22,15 +23,17 @@ export function LoginForm() {
     senha: "",
     lembrarMe: false,
   })
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
   const handleTestLogin = async () => {
     if (!formData.email || !formData.senha) {
       toast({
-        title: "Erro",
+        title: "Campos obrigatórios",
         description: "Preencha email e senha.",
         variant: "destructive",
+        duration: 700,
       })
       return
     }
@@ -46,22 +49,26 @@ export function LoginForm() {
         toast({
           title: "Login realizado!",
           description: "Bem-vindo de volta! Redirecionando...",
+          className: "bg-studify-green text-white border-studify-green",
+          duration: 700,
         })
 
         await new Promise((resolve) => setTimeout(resolve, 1500))
         router.push("/dashboard")
       } else {
         toast({
-          title: "Erro no login",
-          description: result.error || "Credenciais inválidas.",
+          title: "Login ou senha inválidos",
+          description: "Verifique suas credenciais e tente novamente.",
           variant: "destructive",
+          duration: 700,
         })
       }
     } catch (error) {
       toast({
         title: "Erro inesperado",
-        description: "Erro no login.",
+        description: "Tente novamente em alguns instantes.",
         variant: "destructive",
+        duration: 700,
       })
     } finally {
       setIsLoading(false)
@@ -75,9 +82,10 @@ export function LoginForm() {
     try {
       if (!formData.email.trim()) {
         toast({
-          title: "Erro no login",
-          description: "O email é obrigatório.",
+          title: "Email obrigatório",
+          description: "Por favor, informe seu email.",
           variant: "destructive",
+          duration: 700,
         })
         setIsLoading(false)
         return
@@ -85,39 +93,69 @@ export function LoginForm() {
 
       if (!formData.senha) {
         toast({
-          title: "Erro no login",
-          description: "A senha é obrigatória.",
+          title: "Senha obrigatória",
+          description: "Por favor, informe sua senha.",
           variant: "destructive",
+          duration: 700,
         })
         setIsLoading(false)
         return
       }
 
+      // Primeiro tenta login normal do Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email.trim(),
         password: formData.senha,
       })
 
       if (error) {
+        // Se falhar, tenta verificar na tabela profiles (para senhas alteradas)
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .ilike("email", formData.email.trim())
+          .eq("password", formData.senha)
+          .single()
+
+        if (profile) {
+          // Login com credenciais da tabela profiles
+          localStorage.setItem("testUser", JSON.stringify(profile))
+
+          toast({
+            title: "Login realizado!",
+            description: "Bem-vindo de volta! Redirecionando...",
+            className: "bg-studify-green text-white border-studify-green",
+            duration: 700,
+          })
+
+          await new Promise((resolve) => setTimeout(resolve, 1500))
+          router.push("/dashboard")
+          setIsLoading(false)
+          return
+        }
+
         await logLoginAttempt(formData.email, false, undefined, error.message)
 
-        let errorMessage = "Erro desconhecido no login."
+        let errorTitle = "Login ou senha inválidos"
+        let errorDescription = "Verifique suas credenciais e tente novamente."
 
         if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Email ou senha incorretos."
+          errorTitle = "Login ou senha inválidos"
+          errorDescription = "Verifique suas credenciais e tente novamente."
         } else if (error.message.includes("Email not confirmed")) {
           setShowTestLogin(true)
-          errorMessage = "Email não confirmado. Use a opção alternativa abaixo."
+          errorTitle = "Email não confirmado"
+          errorDescription = "Use a opção alternativa abaixo ou confirme seu email."
         } else if (error.message.includes("Too many requests")) {
-          errorMessage = "Muitas tentativas. Aguarde alguns minutos."
-        } else {
-          errorMessage = error.message
+          errorTitle = "Muitas tentativas"
+          errorDescription = "Aguarde alguns minutos antes de tentar novamente."
         }
 
         toast({
-          title: "Erro no login",
-          description: errorMessage,
+          title: errorTitle,
+          description: errorDescription,
           variant: "destructive",
+          duration: 700,
         })
         setIsLoading(false)
         return
@@ -147,6 +185,8 @@ export function LoginForm() {
         toast({
           title: "Login realizado!",
           description: "Bem-vindo de volta! Redirecionando...",
+          className: "bg-studify-green text-white border-studify-green",
+          duration: 700,
         })
 
         await new Promise((resolve) => setTimeout(resolve, 1500))
@@ -157,8 +197,9 @@ export function LoginForm() {
 
       toast({
         title: "Erro inesperado",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        description: "Tente novamente em alguns instantes.",
         variant: "destructive",
+        duration: 700,
       })
     } finally {
       setIsLoading(false)
@@ -221,9 +262,13 @@ export function LoginForm() {
                 Lembrar de mim
               </Label>
             </div>
-            <Link href="/esqueci-senha" className="text-sm text-studify-green hover:text-studify-green/80">
+            <button
+              type="button"
+              onClick={() => setShowForgotPasswordModal(true)}
+              className="text-sm text-studify-green hover:text-studify-green/80"
+            >
               Esqueceu a senha?
-            </Link>
+            </button>
           </div>
 
           <Button type="submit" className="w-full bg-studify-green hover:bg-studify-green/90" disabled={isLoading}>
@@ -257,6 +302,7 @@ export function LoginForm() {
             Cadastre-se
           </Link>
         </div>
+        <ForgotPasswordModal isOpen={showForgotPasswordModal} onClose={() => setShowForgotPasswordModal(false)} />
       </CardContent>
     </Card>
   )

@@ -282,6 +282,110 @@ export async function signOut() {
   }
 }
 
+// Função para atualizar senha de forma sincronizada
+export async function updateUserPassword(userId: string, newPassword: string) {
+  try {
+    console.log("🔐 Atualizando senha de forma sincronizada...")
+
+    // 1. Primeiro, tentar atualizar no Supabase Auth
+    let authUpdateSuccess = false
+    try {
+      const { error: authError } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+
+      if (!authError) {
+        console.log("✅ Senha atualizada no Supabase Auth")
+        authUpdateSuccess = true
+      } else {
+        console.warn("⚠️ Erro ao atualizar senha no Auth:", authError)
+      }
+    } catch (authException) {
+      console.warn("⚠️ Exceção ao atualizar senha no Auth:", authException)
+    }
+
+    // 2. Sempre atualizar na tabela profiles (para compatibilidade)
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        password: newPassword,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+
+    if (profileError) {
+      console.error("❌ Erro ao atualizar senha na tabela profiles:", profileError)
+      throw profileError
+    }
+
+    console.log("✅ Senha atualizada na tabela profiles")
+
+    return {
+      success: true,
+      authUpdated: authUpdateSuccess,
+      profileUpdated: true,
+    }
+  } catch (error) {
+    console.error("❌ Erro ao atualizar senha:", error)
+    return {
+      success: false,
+      error,
+    }
+  }
+}
+
+// Função para atualizar email de forma sincronizada
+export async function updateUserEmail(userId: string, newEmail: string) {
+  try {
+    console.log("📧 Atualizando email de forma sincronizada...")
+
+    // 1. Primeiro, tentar atualizar no Supabase Auth
+    let authUpdateSuccess = false
+    try {
+      const { error: authError } = await supabase.auth.updateUser({
+        email: newEmail,
+      })
+
+      if (!authError) {
+        console.log("✅ Email atualizado no Supabase Auth")
+        authUpdateSuccess = true
+      } else {
+        console.warn("⚠️ Erro ao atualizar email no Auth:", authError)
+      }
+    } catch (authException) {
+      console.warn("⚠️ Exceção ao atualizar email no Auth:", authException)
+    }
+
+    // 2. Sempre atualizar na tabela profiles
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        email: newEmail,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+
+    if (profileError) {
+      console.error("❌ Erro ao atualizar email na tabela profiles:", profileError)
+      throw profileError
+    }
+
+    console.log("✅ Email atualizado na tabela profiles")
+
+    return {
+      success: true,
+      authUpdated: authUpdateSuccess,
+      profileUpdated: true,
+    }
+  } catch (error) {
+    console.error("❌ Erro ao atualizar email:", error)
+    return {
+      success: false,
+      error,
+    }
+  }
+}
+
 // Função para testar conexão com Supabase
 export async function testSupabaseConnection() {
   try {

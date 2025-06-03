@@ -25,17 +25,21 @@ export default function DashboardLayout({
       try {
         console.log("🔐 Verificando autenticação...")
 
+        // Verificar sessão do Supabase
         const {
           data: { session },
         } = await supabase.auth.getSession()
 
-        if (!session) {
+        // Verificar localStorage para usuários com login alternativo
+        const testUser = localStorage.getItem("testUser")
+
+        if (!session && !testUser) {
           console.log("❌ Nenhuma sessão encontrada, redirecionando...")
           router.push("/")
           return
         }
 
-        console.log("✅ Sessão válida encontrada:", session.user.email)
+        console.log("✅ Sessão válida encontrada:", session?.user.email || "via localStorage")
         setIsAuthenticated(true)
         setIsLoading(false)
       } catch (error) {
@@ -53,10 +57,14 @@ export default function DashboardLayout({
     } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("🔄 Mudança no estado de auth:", event, session?.user?.email)
 
-      if (event === "SIGNED_OUT" || !session) {
-        console.log("🚪 Usuário deslogado, redirecionando...")
-        setIsAuthenticated(false)
-        router.push("/")
+      if (event === "SIGNED_OUT") {
+        // Verificar se há usuário no localStorage antes de redirecionar
+        const testUser = localStorage.getItem("testUser")
+        if (!testUser) {
+          console.log("🚪 Usuário deslogado, redirecionando...")
+          setIsAuthenticated(false)
+          router.push("/")
+        }
       } else if (event === "SIGNED_IN" && session) {
         console.log("🔐 Usuário logado:", session.user.email)
         setIsAuthenticated(true)
