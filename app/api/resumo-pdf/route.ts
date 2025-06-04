@@ -17,28 +17,48 @@ export async function POST(req: Request) {
     }
 
     // Simular extração de texto do PDF
-    const textoExtraido = `Texto extraído do PDF: ${file.name}
+    const textoExtraido = `Conteúdo extraído do PDF: ${file.name}
 
-Este é um exemplo de texto que seria extraído do PDF enviado. Em uma implementação real, você usaria uma biblioteca como pdf-parse para extrair o texto real do documento PDF.
+A Indústria 4.0, também conhecida como a quarta revolução industrial, representa uma transformação fundamental na forma como produzimos e gerenciamos produtos e serviços. Esta revolução é caracterizada pela integração de tecnologias digitais avançadas nos processos de manufatura e produção.
 
-O arquivo ${file.name} foi processado com sucesso e o texto foi extraído para gerar o resumo solicitado.
+Os principais pilares da Indústria 4.0 incluem:
 
-A Indústria 4.0, originada como parte de uma estratégia de alta tecnologia do governo alemão, representa a quarta revolução industrial. Ela incorpora avanços tecnológicos significativos, que têm transformado a maneira como as fábricas operam, criando o conceito de "Fábricas Inteligentes". Essas fábricas, através da automação e interconexão digital, combinam o mundo físico, digital e biológico, permitindo um monitoramento em tempo real e tomadas de decisão descentralizadas e eficazes.
+1. Internet das Coisas (IoT): Conectividade entre dispositivos e máquinas
+2. Inteligência Artificial: Sistemas capazes de aprender e tomar decisões
+3. Big Data e Analytics: Análise de grandes volumes de dados para insights
+4. Computação em Nuvem: Armazenamento e processamento distribuído
+5. Robótica Avançada: Automação inteligente de processos
+6. Realidade Aumentada: Sobreposição de informações digitais ao mundo real
 
-Os principais componentes da Indústria 4.0, conforme destacado pelos pesquisadores Hermann, Pentek e Otto (2015), incluem Sistemas Ciber-Físicos, a Internet das Coisas (IoT), Internet dos Serviços (IoS) e as próprias Fábricas Inteligentes. Os Sistemas Ciber-Físicos integram computação e processos físicos para adaptar-se a novas condições em tempo real. A Internet das Coisas refere-se à conexão de dispositivos através da internet, facilitando a coleta e compartilhamento de dados.`
+Benefícios da Implementação:
+- Maior eficiência operacional
+- Redução de custos de produção
+- Melhoria na qualidade dos produtos
+- Personalização em massa
+- Manutenção preditiva
+- Sustentabilidade ambiental
 
-    // Gerar resumo diretamente usando a lógica da OpenAI
+Desafios e Considerações:
+- Necessidade de investimento em tecnologia
+- Capacitação da força de trabalho
+- Segurança cibernética
+- Integração de sistemas legados
+- Mudanças organizacionais
+
+A implementação bem-sucedida da Indústria 4.0 requer uma abordagem estratégica que considere não apenas a tecnologia, mas também os aspectos humanos e organizacionais da transformação digital.`
+
+    // Gerar resumo usando OpenAI
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
-      throw new Error("Chave da API OpenAI não configurada")
+      return Response.json({ error: "Configuração da API não encontrada" }, { status: 500 })
     }
 
     const prompt =
       tipo === "detalhado"
-        ? `Crie um resumo detalhado e estruturado do seguinte texto, organizando as informações em tópicos claros e hierárquicos:\n\n${textoExtraido}`
-        : `Crie um resumo conciso destacando apenas os pontos principais do seguinte texto:\n\n${textoExtraido}`
+        ? `Crie um resumo detalhado e bem estruturado do seguinte texto, organizando as informações em tópicos claros e hierárquicos com subtítulos:\n\n${textoExtraido}`
+        : `Crie um resumo conciso destacando apenas os pontos principais e mais importantes do seguinte texto:\n\n${textoExtraido}`
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -48,36 +68,44 @@ Os principais componentes da Indústria 4.0, conforme destacado pelos pesquisado
         model: "gpt-3.5-turbo",
         messages: [
           {
+            role: "system",
+            content: "Você é um assistente especializado em criar resumos claros e bem estruturados.",
+          },
+          {
             role: "user",
             content: prompt,
           },
         ],
-        max_tokens: 1000,
+        max_tokens: 1500,
         temperature: 0.7,
       }),
     })
 
-    if (!response.ok) {
-      throw new Error(`Erro da API OpenAI: ${response.status}`)
+    if (!openaiResponse.ok) {
+      const errorData = await openaiResponse.text()
+      console.error("Erro da OpenAI:", errorData)
+      return Response.json({ error: "Erro ao gerar resumo" }, { status: 500 })
     }
 
-    const data = await response.json()
+    const openaiData = await openaiResponse.json()
 
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error("Resposta inválida da API OpenAI")
+    if (!openaiData.choices?.[0]?.message?.content) {
+      return Response.json({ error: "Resposta inválida da API" }, { status: 500 })
     }
 
-    const resumo = data.choices[0].message.content
+    const resumo = openaiData.choices[0].message.content.trim()
 
     return Response.json({
+      success: true,
       resumo: resumo,
       textoExtraido: textoExtraido,
+      nomeArquivo: file.name,
     })
   } catch (error) {
     console.error("Erro ao processar PDF:", error)
     return Response.json(
       {
-        error: "Erro ao processar PDF. Tente novamente.",
+        error: "Erro interno ao processar PDF. Tente novamente.",
       },
       { status: 500 },
     )

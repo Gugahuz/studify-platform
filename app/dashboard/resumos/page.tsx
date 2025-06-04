@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Upload, History, Loader2, Copy, Download } from "lucide-react"
+import { FileText, Upload, History, Loader2, Copy, Download, CheckCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ResumoModal } from "@/components/resumo-modal"
 import jsPDF from "jspdf"
@@ -21,46 +21,61 @@ type Resumo = {
   textoOriginal?: string
   tipo: "conciso" | "detalhado"
   data: string
+  nomeArquivo?: string
 }
 
 export default function ResumosPage() {
   const [texto, setTexto] = useState("")
   const [tipoResumo, setTipoResumo] = useState<"conciso" | "detalhado">("conciso")
   const [resumoGerado, setResumoGerado] = useState("")
+  const [textoOriginalAtual, setTextoOriginalAtual] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [resumosSalvos, setResumosSalvos] = useState<Resumo[]>([])
   const [selectedResumo, setSelectedResumo] = useState<Resumo | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isUploadLoading, setIsUploadLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState("gerar")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  // Carregar resumo gerado do sessionStorage
+  // Carregar dados do localStorage
   useEffect(() => {
     const savedResumo = sessionStorage.getItem("resumo-gerado")
+    const savedTextoOriginal = sessionStorage.getItem("texto-original")
+    const savedResumos = localStorage.getItem("resumos-salvos")
+
     if (savedResumo) {
       setResumoGerado(savedResumo)
     }
-
-    // Carregar resumos salvos do localStorage
-    const savedResumos = localStorage.getItem("resumos-salvos")
+    if (savedTextoOriginal) {
+      setTextoOriginalAtual(savedTextoOriginal)
+      setTexto(savedTextoOriginal)
+    }
     if (savedResumos) {
-      setResumosSalvos(JSON.parse(savedResumos))
+      try {
+        setResumosSalvos(JSON.parse(savedResumos))
+      } catch (error) {
+        console.error("Erro ao carregar resumos salvos:", error)
+      }
     }
   }, [])
 
-  // Salvar resumo gerado no sessionStorage
+  // Salvar dados no storage
   useEffect(() => {
     if (resumoGerado) {
       sessionStorage.setItem("resumo-gerado", resumoGerado)
     }
   }, [resumoGerado])
 
-  // Salvar resumos no localStorage
   useEffect(() => {
-    if (resumosSalvos.length > 0) {
-      localStorage.setItem("resumos-salvos", JSON.stringify(resumosSalvos))
+    if (texto) {
+      sessionStorage.setItem("texto-original", texto)
+      setTextoOriginalAtual(texto)
     }
+  }, [texto])
+
+  useEffect(() => {
+    localStorage.setItem("resumos-salvos", JSON.stringify(resumosSalvos))
   }, [resumosSalvos])
 
   const gerarResumo = async () => {
@@ -92,9 +107,10 @@ export default function ResumosPage() {
 
       const data = await response.json()
       setResumoGerado(data.resumo)
+      setTextoOriginalAtual(texto.trim())
 
       toast({
-        title: "Resumo gerado!",
+        title: "✅ Resumo gerado!",
         description: "Seu resumo foi criado com sucesso.",
       })
     } catch (error) {
@@ -109,64 +125,121 @@ export default function ResumosPage() {
   }
 
   const salvarResumo = () => {
-    if (!resumoGerado) return
+    if (!resumoGerado) {
+      toast({
+        title: "Erro",
+        description: "Não há resumo para salvar.",
+        variant: "destructive",
+      })
+      return
+    }
 
     const novoResumo: Resumo = {
       id: Date.now(),
       titulo: `Resumo ${tipoResumo} - ${new Date().toLocaleDateString()}`,
       conteudo: resumoGerado,
-      textoOriginal: texto,
+      textoOriginal: textoOriginalAtual,
       tipo: tipoResumo,
       data: new Date().toLocaleDateString(),
     }
 
     setResumosSalvos([novoResumo, ...resumosSalvos])
+
     toast({
-      title: "Resumo salvo!",
+      title: "✅ Resumo salvo!",
       description: "O resumo foi adicionado ao seu histórico. Acesse a aba 'Histórico' para visualizar.",
     })
   }
 
   const copiarResumo = () => {
+    if (!resumoGerado) {
+      toast({
+        title: "Erro",
+        description: "Não há resumo para copiar.",
+        variant: "destructive",
+      })
+      return
+    }
+
     navigator.clipboard.writeText(resumoGerado)
     toast({
-      title: "Copiado!",
+      title: "✅ Copiado!",
       description: "Resumo copiado para a área de transferência.",
     })
   }
 
   const baixarPDF = () => {
-    const doc = new jsPDF()
-    const pageWidth = doc.internal.pageSize.width
-    const margin = 20
-    const maxWidth = pageWidth - 2 * margin
+    if (!resumoGerado) {
+      toast({
+        title: "Erro",
+        description: "Não há resumo para baixar.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    // Título
-    doc.setFontSize(16)
-    doc.text(`Resumo ${tipoResumo} - ${new Date().toLocaleDateString()}`, margin, 30)
+    try {
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.width
+      const pageHeight = doc.internal.pageSize.height
+      const margin = 20
+      const maxWidth = pageWidth - 2 * margin
+      let yPosition = 30
 
-    // Tipo
-    doc.setFontSize(10)
-    doc.text(`Tipo: ${tipoResumo === "detalhado" ? "Detalhado" : "Conciso"}`, margin, 45)
+      // Título
+      doc.setFontSize(16)
+      doc.setFont("helvetica", "bold")
+      doc.text(`Resumo ${tipoResumo} - ${new Date().toLocaleDateString()}`, margin, yPosition)
+      yPosition += 15
 
-    // Conteúdo do resumo
-    doc.setFontSize(12)
-    const splitText = doc.splitTextToSize(resumoGerado, maxWidth)
-    doc.text(splitText, margin, 65)
+      // Informações
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      doc.text(`Tipo: ${tipoResumo === "detalhado" ? "Detalhado" : "Conciso"}`, margin, yPosition)
+      yPosition += 10
+      doc.text(`Data: ${new Date().toLocaleDateString()}`, margin, yPosition)
+      yPosition += 20
 
-    doc.save(`resumo-${tipoResumo}-${Date.now()}.pdf`)
+      // Conteúdo
+      doc.setFontSize(12)
+      const splitText = doc.splitTextToSize(resumoGerado, maxWidth)
 
-    toast({
-      title: "PDF baixado!",
-      description: "O resumo foi salvo como PDF.",
-    })
+      for (let i = 0; i < splitText.length; i++) {
+        if (yPosition > pageHeight - 30) {
+          doc.addPage()
+          yPosition = 30
+        }
+        doc.text(splitText[i], margin, yPosition)
+        yPosition += 7
+      }
+
+      const fileName = `resumo-${tipoResumo}-${Date.now()}.pdf`
+      doc.save(fileName)
+
+      toast({
+        title: "✅ PDF baixado!",
+        description: "O resumo foi salvo como PDF com sucesso.",
+      })
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar o PDF. Tente novamente.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Verificar tipo de arquivo
+    // Notificação de início do upload
+    toast({
+      title: "📤 Upload iniciado",
+      description: `Processando arquivo: ${file.name}`,
+    })
+
+    // Verificações
     if (file.type !== "application/pdf") {
       toast({
         title: "Erro",
@@ -176,7 +249,6 @@ export default function ResumosPage() {
       return
     }
 
-    // Verificar tamanho (10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "Erro",
@@ -198,22 +270,32 @@ export default function ResumosPage() {
         body: formData,
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error("Erro ao processar PDF")
+        throw new Error(data.error || "Erro ao processar PDF")
       }
 
-      const data = await response.json()
-      setResumoGerado(data.resumo)
-      setTexto(data.textoExtraido || "")
+      if (data.success && data.resumo) {
+        setResumoGerado(data.resumo)
+        setTexto(data.textoExtraido || "")
+        setTextoOriginalAtual(data.textoExtraido || "")
 
-      toast({
-        title: "PDF processado!",
-        description: "O resumo foi gerado a partir do seu PDF.",
-      })
+        // Mudar para a aba "Gerar" para mostrar o resultado
+        setActiveTab("gerar")
+
+        toast({
+          title: "✅ PDF processado!",
+          description: "O resumo foi gerado a partir do seu PDF. Confira na aba 'Gerar'.",
+        })
+      } else {
+        throw new Error("Resposta inválida do servidor")
+      }
     } catch (error) {
+      console.error("Erro no upload:", error)
       toast({
         title: "Erro",
-        description: "Não foi possível processar o PDF. Tente novamente.",
+        description: error instanceof Error ? error.message : "Não foi possível processar o PDF. Tente novamente.",
         variant: "destructive",
       })
     } finally {
@@ -229,6 +311,24 @@ export default function ResumosPage() {
     setIsModalOpen(true)
   }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const files = e.dataTransfer.files
+    if (files.length > 0) {
+      const file = files[0]
+      if (fileInputRef.current) {
+        const dataTransfer = new DataTransfer()
+        dataTransfer.items.add(file)
+        fileInputRef.current.files = dataTransfer.files
+        handleFileUpload({ target: { files: dataTransfer.files } } as any)
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -236,7 +336,7 @@ export default function ResumosPage() {
         <p className="text-gray-600">Transforme textos longos em resumos organizados e didáticos</p>
       </div>
 
-      <Tabs defaultValue="gerar">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3 max-w-md">
           <TabsTrigger value="gerar" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -316,15 +416,15 @@ export default function ResumosPage() {
                 {resumoGerado ? (
                   <div className="space-y-4">
                     <div className="bg-gray-50 p-4 rounded-lg min-h-[300px]">
-                      <div className="whitespace-pre-wrap text-sm">{resumoGerado}</div>
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{resumoGerado}</div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button onClick={copiarResumo} variant="outline" size="sm">
                         <Copy className="h-4 w-4 mr-2" />
                         Copiar
                       </Button>
                       <Button onClick={salvarResumo} variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-2" />
+                        <CheckCircle className="h-4 w-4 mr-2" />
                         Salvar
                       </Button>
                       <Button onClick={baixarPDF} variant="outline" size="sm">
@@ -349,7 +449,7 @@ export default function ResumosPage() {
           <Card className="border-blue-100">
             <CardHeader>
               <CardTitle>Upload de arquivo</CardTitle>
-              <CardDescription>Envie um arquivo PDF para gerar resumo</CardDescription>
+              <CardDescription>Envie um arquivo PDF para gerar resumo automaticamente</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -368,26 +468,37 @@ export default function ResumosPage() {
 
                 <div
                   className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => !isUploadLoading && fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
                 >
                   {isUploadLoading ? (
                     <>
-                      <Loader2 className="h-12 w-12 text-gray-400 mb-4 animate-spin" />
+                      <Loader2 className="h-12 w-12 text-blue-500 mb-4 animate-spin" />
                       <h3 className="text-lg font-medium mb-2">Processando PDF...</h3>
-                      <p className="text-gray-500">Aguarde enquanto extraímos o texto</p>
+                      <p className="text-gray-500">Extraindo texto e gerando resumo</p>
                     </>
                   ) : (
                     <>
                       <Upload className="h-12 w-12 text-gray-400 mb-4" />
                       <h3 className="text-lg font-medium mb-2">Arraste e solte seu arquivo aqui</h3>
                       <p className="text-gray-500 mb-4">ou</p>
-                      <Button type="button">Selecionar arquivo</Button>
+                      <Button type="button" disabled={isUploadLoading}>
+                        Selecionar arquivo
+                      </Button>
                       <p className="text-xs text-gray-500 mt-4">Formato suportado: PDF (máx. 10MB)</p>
                     </>
                   )}
                 </div>
 
-                <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isUploadLoading}
+                />
               </div>
             </CardContent>
           </Card>
@@ -396,27 +507,34 @@ export default function ResumosPage() {
         <TabsContent value="historico" className="mt-6">
           <Card className="border-blue-100">
             <CardHeader>
-              <CardTitle>Resumos salvos</CardTitle>
+              <CardTitle>Resumos salvos ({resumosSalvos.length})</CardTitle>
               <CardDescription>Acesse seus resumos anteriores</CardDescription>
             </CardHeader>
             <CardContent>
               {resumosSalvos.length > 0 ? (
                 <div className="space-y-4">
                   {resumosSalvos.map((resumo) => (
-                    <div key={resumo.id} className="p-4 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer">
+                    <div key={resumo.id} className="p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium">{resumo.titulo}</h4>
                         <span className="text-xs text-gray-500">{resumo.data}</span>
                       </div>
-                      <p className="text-sm text-gray-600 line-clamp-3">{resumo.conteudo}</p>
-                      <div className="flex items-center justify-between mt-3">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${
-                            resumo.tipo === "detalhado" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
-                          }`}
-                        >
-                          {resumo.tipo === "detalhado" ? "Detalhado" : "Conciso"}
-                        </span>
+                      <p className="text-sm text-gray-600 line-clamp-3 mb-3">{resumo.conteudo}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-2">
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              resumo.tipo === "detalhado" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+                            }`}
+                          >
+                            {resumo.tipo === "detalhado" ? "Detalhado" : "Conciso"}
+                          </span>
+                          {resumo.nomeArquivo && (
+                            <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                              PDF
+                            </span>
+                          )}
+                        </div>
                         <Button size="sm" variant="ghost" onClick={() => abrirResumoCompleto(resumo)}>
                           Ver completo
                         </Button>
