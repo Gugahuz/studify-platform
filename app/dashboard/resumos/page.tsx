@@ -9,9 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { FileText, Upload, History, Loader2, Copy, Download, CheckCircle, AlertCircle } from "lucide-react"
+import { FileText, Upload, History, Loader2, Copy, Download, CheckCircle } from "lucide-react"
 import { ResumoModal } from "@/components/resumo-modal"
+import { NotificationSystem, useNotifications } from "@/components/notification-system"
 import jsPDF from "jspdf"
 
 type Resumo = {
@@ -22,11 +22,6 @@ type Resumo = {
   tipo: "conciso" | "detalhado"
   data: string
   nomeArquivo?: string
-}
-
-type NotificationState = {
-  type: "success" | "error" | "info" | null
-  message: string
 }
 
 export default function ResumosPage() {
@@ -40,26 +35,14 @@ export default function ResumosPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isUploadLoading, setIsUploadLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("gerar")
-  const [notification, setNotification] = useState<NotificationState>({ type: null, message: "" })
 
   // Estados específicos para upload
   const [uploadResumo, setUploadResumo] = useState("")
   const [uploadTextoOriginal, setUploadTextoOriginal] = useState("")
-  const [uploadNotification, setUploadNotification] = useState<NotificationState>({ type: null, message: "" })
   const [tipoResumoUpload, setTipoResumoUpload] = useState<"conciso" | "detalhado">("conciso")
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Função para mostrar notificação
-  const showNotification = (type: "success" | "error" | "info", message: string, isUpload = false) => {
-    if (isUpload) {
-      setUploadNotification({ type, message })
-      setTimeout(() => setUploadNotification({ type: null, message: "" }), 5000)
-    } else {
-      setNotification({ type, message })
-      setTimeout(() => setNotification({ type: null, message: "" }), 5000)
-    }
-  }
+  const { notifications, addNotification, removeNotification } = useNotifications()
 
   // Carregar dados do localStorage
   useEffect(() => {
@@ -103,7 +86,11 @@ export default function ResumosPage() {
 
   const gerarResumo = async () => {
     if (!texto.trim()) {
-      showNotification("error", "Por favor, insira um texto para resumir.")
+      addNotification({
+        type: "error",
+        title: "Texto obrigatório",
+        description: "Por favor, insira um texto para resumir.",
+      })
       return
     }
 
@@ -128,9 +115,17 @@ export default function ResumosPage() {
       setResumoGerado(data.resumo)
       setTextoOriginalAtual(texto.trim())
 
-      showNotification("success", "✅ Resumo gerado com sucesso!")
+      addNotification({
+        type: "success",
+        title: "Resumo gerado!",
+        description: "Seu resumo foi criado com sucesso.",
+      })
     } catch (error) {
-      showNotification("error", "❌ Erro ao gerar resumo. Tente novamente.")
+      addNotification({
+        type: "error",
+        title: "Erro ao gerar resumo",
+        description: "Não foi possível gerar o resumo. Tente novamente.",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -138,7 +133,11 @@ export default function ResumosPage() {
 
   const salvarResumo = () => {
     if (!resumoGerado) {
-      showNotification("error", "❌ Nenhum resumo para salvar.")
+      addNotification({
+        type: "error",
+        title: "Nada para salvar",
+        description: "Não há resumo para salvar.",
+      })
       return
     }
 
@@ -152,12 +151,20 @@ export default function ResumosPage() {
     }
 
     setResumosSalvos([novoResumo, ...resumosSalvos])
-    showNotification("success", "✅ Resumo salvo no histórico!")
+    addNotification({
+      type: "success",
+      title: "Resumo salvo!",
+      description: "Adicionado ao histórico com sucesso.",
+    })
   }
 
   const salvarResumoUpload = () => {
     if (!uploadResumo) {
-      showNotification("error", "❌ Nenhum resumo para salvar.", true)
+      addNotification({
+        type: "error",
+        title: "Nada para salvar",
+        description: "Não há resumo para salvar.",
+      })
       return
     }
 
@@ -172,27 +179,47 @@ export default function ResumosPage() {
     }
 
     setResumosSalvos([novoResumo, ...resumosSalvos])
-    showNotification("success", "✅ Resumo salvo no histórico!", true)
+    addNotification({
+      type: "success",
+      title: "Resumo salvo!",
+      description: "Adicionado ao histórico com sucesso.",
+    })
   }
 
   const copiarResumo = () => {
     if (!resumoGerado) {
-      showNotification("error", "❌ Nenhum resumo para copiar.")
+      addNotification({
+        type: "error",
+        title: "Nada para copiar",
+        description: "Não há resumo para copiar.",
+      })
       return
     }
 
     navigator.clipboard.writeText(resumoGerado)
-    showNotification("success", "✅ Resumo copiado!")
+    addNotification({
+      type: "success",
+      title: "Copiado!",
+      description: "Resumo copiado para área de transferência.",
+    })
   }
 
   const copiarResumoUpload = () => {
     if (!uploadResumo) {
-      showNotification("error", "❌ Nenhum resumo para copiar.", true)
+      addNotification({
+        type: "error",
+        title: "Nada para copiar",
+        description: "Não há resumo para copiar.",
+      })
       return
     }
 
     navigator.clipboard.writeText(uploadResumo)
-    showNotification("success", "✅ Resumo copiado!", true)
+    addNotification({
+      type: "success",
+      title: "Copiado!",
+      description: "Resumo copiado para área de transferência.",
+    })
   }
 
   const baixarPDF = (resumoParaBaixar: string, tipoParaBaixar: string) => {
@@ -212,9 +239,17 @@ export default function ResumosPage() {
       doc.text(splitText, margin, 50)
 
       doc.save(`resumo-${Date.now()}.pdf`)
-      showNotification("success", "✅ PDF baixado com sucesso!")
+      addNotification({
+        type: "success",
+        title: "PDF baixado!",
+        description: "Arquivo salvo com sucesso.",
+      })
     } catch (error) {
-      showNotification("error", "❌ Erro ao gerar PDF.")
+      addNotification({
+        type: "error",
+        title: "Erro no download",
+        description: "Não foi possível gerar o PDF.",
+      })
     }
   }
 
@@ -222,19 +257,34 @@ export default function ResumosPage() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    showNotification("info", "📤 Processando arquivo...", true)
-
+    // Validações iniciais
     if (file.type !== "application/pdf") {
-      showNotification("error", "❌ Apenas arquivos PDF são aceitos.", true)
+      addNotification({
+        type: "error",
+        title: "Formato inválido",
+        description: "Apenas arquivos PDF são aceitos.",
+      })
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      showNotification("error", "❌ Arquivo muito grande (máx. 10MB).", true)
+      addNotification({
+        type: "error",
+        title: "Arquivo muito grande",
+        description: "O arquivo deve ter no máximo 10MB.",
+      })
       return
     }
 
     setIsUploadLoading(true)
+
+    // Notificação de carregamento
+    const loadingId = addNotification({
+      type: "loading",
+      title: "Processando PDF...",
+      description: `Analisando: ${file.name}`,
+      duration: 0, // Não remove automaticamente
+    })
 
     try {
       const formData = new FormData()
@@ -248,15 +298,41 @@ export default function ResumosPage() {
 
       const data = await response.json()
 
+      // Remove notificação de carregamento
+      removeNotification(loadingId)
+
       if (response.ok && data.success) {
         setUploadResumo(data.resumo)
         setUploadTextoOriginal(data.textoExtraido)
-        showNotification("success", "✅ PDF processado com sucesso!", true)
+
+        addNotification({
+          type: "success",
+          title: "PDF processado com sucesso!",
+          description: data.fallback ? "Resumo gerado com método alternativo." : "Resumo gerado com IA avançada.",
+        })
       } else {
         throw new Error(data.error || "Erro no processamento")
       }
     } catch (error) {
-      showNotification("error", "❌ Falha ao processar PDF. Tente novamente.", true)
+      // Remove notificação de carregamento
+      removeNotification(loadingId)
+
+      let errorMessage = "Falha ao processar PDF. Tente novamente."
+      if (error instanceof Error) {
+        if (error.message.includes("fetch")) {
+          errorMessage = "Erro de conexão. Verifique sua internet."
+        } else if (error.message.includes("503")) {
+          errorMessage = "Serviço temporariamente indisponível."
+        } else {
+          errorMessage = error.message
+        }
+      }
+
+      addNotification({
+        type: "error",
+        title: "Erro no processamento",
+        description: errorMessage,
+      })
     } finally {
       setIsUploadLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -288,6 +364,8 @@ export default function ResumosPage() {
 
   return (
     <div className="space-y-6">
+      <NotificationSystem notifications={notifications} onRemove={removeNotification} />
+
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Gerador de Resumos</h1>
         <p className="text-gray-600">Transforme textos longos em resumos organizados e didáticos</p>
@@ -310,15 +388,6 @@ export default function ResumosPage() {
         </TabsList>
 
         <TabsContent value="gerar" className="mt-6">
-          {notification.type && (
-            <Alert
-              className={`mb-4 ${notification.type === "success" ? "border-green-200 bg-green-50" : notification.type === "error" ? "border-red-200 bg-red-50" : "border-blue-200 bg-blue-50"}`}
-            >
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{notification.message}</AlertDescription>
-            </Alert>
-          )}
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Input */}
             <Card className="border-blue-100">
@@ -412,15 +481,6 @@ export default function ResumosPage() {
         </TabsContent>
 
         <TabsContent value="upload" className="mt-6">
-          {uploadNotification.type && (
-            <Alert
-              className={`mb-4 ${uploadNotification.type === "success" ? "border-green-200 bg-green-50" : uploadNotification.type === "error" ? "border-red-200 bg-red-50" : "border-blue-200 bg-blue-50"}`}
-            >
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{uploadNotification.message}</AlertDescription>
-            </Alert>
-          )}
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Upload Section */}
             <Card className="border-green-200">
