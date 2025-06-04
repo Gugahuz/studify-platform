@@ -1,8 +1,12 @@
 export async function POST(req: Request) {
   try {
+    console.log("PDF upload request received")
+
     const formData = await req.formData()
     const file = formData.get("file") as File
     const tipo = (formData.get("tipo") as string) || "conciso"
+
+    console.log("File received:", file?.name, "Type:", tipo)
 
     if (!file) {
       return Response.json({ error: "Arquivo é obrigatório" }, { status: 400 })
@@ -16,47 +20,66 @@ export async function POST(req: Request) {
       return Response.json({ error: "Arquivo deve ter no máximo 10MB" }, { status: 400 })
     }
 
-    // Simular extração de texto do PDF
-    const textoExtraido = `Conteúdo extraído do PDF: ${file.name}
+    // Simulate realistic PDF text extraction
+    const textoExtraido = `Conteúdo extraído do arquivo: ${file.name}
 
-A Indústria 4.0, também conhecida como a quarta revolução industrial, representa uma transformação fundamental na forma como produzimos e gerenciamos produtos e serviços. Esta revolução é caracterizada pela integração de tecnologias digitais avançadas nos processos de manufatura e produção.
+RESUMO EXECUTIVO
 
-Os principais pilares da Indústria 4.0 incluem:
+A transformação digital nas organizações modernas tem se tornado um imperativo estratégico para manter a competitividade no mercado atual. Este documento apresenta uma análise abrangente dos principais aspectos envolvidos neste processo de mudança organizacional.
 
-1. Internet das Coisas (IoT): Conectividade entre dispositivos e máquinas
-2. Inteligência Artificial: Sistemas capazes de aprender e tomar decisões
-3. Big Data e Analytics: Análise de grandes volumes de dados para insights
-4. Computação em Nuvem: Armazenamento e processamento distribuído
-5. Robótica Avançada: Automação inteligente de processos
-6. Realidade Aumentada: Sobreposição de informações digitais ao mundo real
+PRINCIPAIS TÓPICOS ABORDADOS:
 
-Benefícios da Implementação:
-- Maior eficiência operacional
-- Redução de custos de produção
-- Melhoria na qualidade dos produtos
-- Personalização em massa
-- Manutenção preditiva
-- Sustentabilidade ambiental
+1. FUNDAMENTOS DA TRANSFORMAÇÃO DIGITAL
+A transformação digital não se limita apenas à implementação de novas tecnologias, mas envolve uma mudança cultural profunda que afeta todos os aspectos da organização. Inclui a revisão de processos, a capacitação de equipes e a adoção de uma mentalidade orientada por dados.
 
-Desafios e Considerações:
-- Necessidade de investimento em tecnologia
-- Capacitação da força de trabalho
-- Segurança cibernética
-- Integração de sistemas legados
-- Mudanças organizacionais
+2. TECNOLOGIAS EMERGENTES
+- Inteligência Artificial e Machine Learning
+- Internet das Coisas (IoT)
+- Computação em Nuvem
+- Blockchain e criptografia
+- Realidade Aumentada e Virtual
+- Automação de Processos Robóticos (RPA)
 
-A implementação bem-sucedida da Indústria 4.0 requer uma abordagem estratégica que considere não apenas a tecnologia, mas também os aspectos humanos e organizacionais da transformação digital.`
+3. IMPACTOS ORGANIZACIONAIS
+A implementação de tecnologias digitais gera impactos significativos na estrutura organizacional, incluindo:
+- Mudanças nos modelos de negócio
+- Necessidade de novas competências
+- Alterações nos processos de trabalho
+- Evolução da experiência do cliente
+- Transformação da cultura empresarial
 
-    // Gerar resumo usando OpenAI
+4. DESAFIOS E OPORTUNIDADES
+Entre os principais desafios identificados estão a resistência à mudança, a necessidade de investimentos significativos e a complexidade da integração de sistemas. Por outro lado, as oportunidades incluem maior eficiência operacional, melhor experiência do cliente e criação de novos modelos de receita.
+
+5. ESTRATÉGIAS DE IMPLEMENTAÇÃO
+Para uma implementação bem-sucedida, é essencial:
+- Definir uma visão clara e objetivos mensuráveis
+- Envolver a liderança em todos os níveis
+- Investir na capacitação das equipes
+- Adotar uma abordagem gradual e iterativa
+- Estabelecer métricas de acompanhamento
+
+CONCLUSÕES
+
+A transformação digital é um processo contínuo que requer planejamento estratégico, investimento em tecnologia e, principalmente, mudança cultural. As organizações que conseguirem navegar com sucesso por esta transformação estarão melhor posicionadas para enfrentar os desafios futuros e aproveitar as oportunidades emergentes no mercado digital.
+
+Este documento serve como base para o desenvolvimento de estratégias específicas de transformação digital, considerando as particularidades de cada organização e setor de atuação.`
+
+    console.log("Extracted text length:", textoExtraido.length)
+
+    // Generate summary using OpenAI with better error handling
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
+      console.error("OpenAI API key not found")
       return Response.json({ error: "Configuração da API não encontrada" }, { status: 500 })
     }
 
     const prompt =
       tipo === "detalhado"
-        ? `Crie um resumo detalhado e bem estruturado do seguinte texto, organizando as informações em tópicos claros e hierárquicos com subtítulos:\n\n${textoExtraido}`
-        : `Crie um resumo conciso destacando apenas os pontos principais e mais importantes do seguinte texto:\n\n${textoExtraido}`
+        ? `Crie um resumo detalhado e bem estruturado do seguinte texto. Organize as informações em seções claras com títulos e subtópicos. Mantenha a estrutura hierárquica e inclua os pontos mais importantes de cada seção:\n\n${textoExtraido}`
+        : `Crie um resumo conciso e objetivo do seguinte texto, destacando apenas os pontos principais e mais relevantes. Use uma linguagem clara e direta:\n\n${textoExtraido}`
+
+    console.log("Calling OpenAI API...")
 
     const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -69,43 +92,52 @@ A implementação bem-sucedida da Indústria 4.0 requer uma abordagem estratégi
         messages: [
           {
             role: "system",
-            content: "Você é um assistente especializado em criar resumos claros e bem estruturados.",
+            content:
+              "Você é um assistente especializado em criar resumos claros, bem estruturados e informativos. Sempre organize o conteúdo de forma lógica e use formatação adequada.",
           },
           {
             role: "user",
             content: prompt,
           },
         ],
-        max_tokens: 1500,
+        max_tokens: 2000,
         temperature: 0.7,
       }),
     })
 
+    console.log("OpenAI response status:", openaiResponse.status)
+
     if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.text()
-      console.error("Erro da OpenAI:", errorData)
+      const errorText = await openaiResponse.text()
+      console.error("OpenAI API error:", errorText)
       return Response.json({ error: "Erro ao gerar resumo" }, { status: 500 })
     }
 
     const openaiData = await openaiResponse.json()
+    console.log("OpenAI response received")
 
     if (!openaiData.choices?.[0]?.message?.content) {
+      console.error("Invalid OpenAI response structure")
       return Response.json({ error: "Resposta inválida da API" }, { status: 500 })
     }
 
     const resumo = openaiData.choices[0].message.content.trim()
+    console.log("Summary generated successfully, length:", resumo.length)
 
     return Response.json({
       success: true,
       resumo: resumo,
       textoExtraido: textoExtraido,
       nomeArquivo: file.name,
+      tamanhoArquivo: file.size,
+      tipoResumo: tipo,
     })
   } catch (error) {
-    console.error("Erro ao processar PDF:", error)
+    console.error("Error processing PDF:", error)
     return Response.json(
       {
         error: "Erro interno ao processar PDF. Tente novamente.",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     )

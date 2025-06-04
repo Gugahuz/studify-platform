@@ -1,7 +1,6 @@
 "use client"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, Copy, Download, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -115,7 +114,7 @@ export function ResumoModal({ isOpen, onClose, resumo }: ResumoModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl">{resumo.titulo}</DialogTitle>
@@ -132,65 +131,61 @@ export function ResumoModal({ isOpen, onClose, resumo }: ResumoModalProps) {
 
         <div className="flex-1 overflow-hidden">
           {resumo.textoOriginal ? (
-            <Tabs defaultValue="resumo" className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
-                <TabsTrigger value="resumo">Resumo Gerado</TabsTrigger>
-                <TabsTrigger value="original">Texto Original</TabsTrigger>
-              </TabsList>
+            // Side-by-side layout when original text exists
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+              {/* Original Text Panel */}
+              <Card className="h-full flex flex-col">
+                <CardHeader className="flex-shrink-0">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FileText className="h-5 w-5" />
+                    Texto Original
+                  </CardTitle>
+                  <CardDescription>Conteúdo fornecido para resumir</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-hidden flex flex-col">
+                  <div className="bg-gray-50 p-4 rounded-lg flex-1 overflow-y-auto mb-4">
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{resumo.textoOriginal}</div>
+                  </div>
+                  <Button
+                    onClick={() => copiarTexto(resumo.textoOriginal!, "Texto original")}
+                    variant="outline"
+                    size="sm"
+                    className="flex-shrink-0"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copiar Original
+                  </Button>
+                </CardContent>
+              </Card>
 
-              <TabsContent value="resumo" className="flex-1 overflow-hidden mt-4">
-                <Card className="h-full flex flex-col">
-                  <CardHeader className="flex-shrink-0">
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Resumo {resumo.tipo === "detalhado" ? "Detalhado" : "Conciso"}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex-1 overflow-hidden flex flex-col">
-                    <div className="bg-gray-50 p-4 rounded-lg flex-1 overflow-y-auto mb-4">
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{resumo.conteudo}</div>
-                    </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <Button onClick={() => copiarTexto(resumo.conteudo, "Resumo")} variant="outline" size="sm">
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copiar Resumo
-                      </Button>
-                      <Button onClick={baixarPDF} variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-2" />
-                        Baixar PDF
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="original" className="flex-1 overflow-hidden mt-4">
-                <Card className="h-full flex flex-col">
-                  <CardHeader className="flex-shrink-0">
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Texto Original
-                    </CardTitle>
-                    <CardDescription>Conteúdo fornecido para resumir</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 overflow-hidden flex flex-col">
-                    <div className="bg-gray-50 p-4 rounded-lg flex-1 overflow-y-auto mb-4">
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{resumo.textoOriginal}</div>
-                    </div>
-                    <Button
-                      onClick={() => copiarTexto(resumo.textoOriginal!, "Texto original")}
-                      variant="outline"
-                      size="sm"
-                      className="flex-shrink-0"
-                    >
+              {/* Summary Panel */}
+              <Card className="h-full flex flex-col">
+                <CardHeader className="flex-shrink-0">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FileText className="h-5 w-5" />
+                    Resumo {resumo.tipo === "detalhado" ? "Detalhado" : "Conciso"}
+                  </CardTitle>
+                  <CardDescription>Resumo gerado automaticamente</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-hidden flex flex-col">
+                  <div className="bg-blue-50 p-4 rounded-lg flex-1 overflow-y-auto mb-4">
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{resumo.conteudo}</div>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button onClick={() => copiarTexto(resumo.conteudo, "Resumo")} variant="outline" size="sm">
                       <Copy className="h-4 w-4 mr-2" />
-                      Copiar Original
+                      Copiar Resumo
                     </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                    <Button onClick={baixarPDF} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Baixar PDF
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
+            // Single panel layout when no original text
             <Card className="h-full flex flex-col">
               <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center gap-2">

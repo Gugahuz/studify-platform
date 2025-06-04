@@ -127,56 +127,84 @@ export default function ResumosPage() {
   const salvarResumo = () => {
     if (!resumoGerado) {
       toast({
-        title: "Erro",
+        title: "❌ Nada para salvar",
         description: "Não há resumo para salvar.",
         variant: "destructive",
       })
       return
     }
 
-    const novoResumo: Resumo = {
-      id: Date.now(),
-      titulo: `Resumo ${tipoResumo} - ${new Date().toLocaleDateString()}`,
-      conteudo: resumoGerado,
-      textoOriginal: textoOriginalAtual,
-      tipo: tipoResumo,
-      data: new Date().toLocaleDateString(),
+    try {
+      const novoResumo: Resumo = {
+        id: Date.now(),
+        titulo: `Resumo ${tipoResumo} - ${new Date().toLocaleDateString()}`,
+        conteudo: resumoGerado,
+        textoOriginal: textoOriginalAtual,
+        tipo: tipoResumo,
+        data: new Date().toLocaleDateString(),
+      }
+
+      const novosResumos = [novoResumo, ...resumosSalvos]
+      setResumosSalvos(novosResumos)
+
+      toast({
+        title: "✅ Resumo salvo!",
+        description: `Resumo adicionado ao histórico (${novosResumos.length} total). Acesse a aba 'Histórico' para visualizar.`,
+      })
+
+      console.log("Summary saved successfully")
+    } catch (error) {
+      console.error("Error saving summary:", error)
+      toast({
+        title: "❌ Erro ao salvar",
+        description: "Não foi possível salvar o resumo. Tente novamente.",
+        variant: "destructive",
+      })
     }
-
-    setResumosSalvos([novoResumo, ...resumosSalvos])
-
-    toast({
-      title: "✅ Resumo salvo!",
-      description: "O resumo foi adicionado ao seu histórico. Acesse a aba 'Histórico' para visualizar.",
-    })
   }
 
   const copiarResumo = () => {
     if (!resumoGerado) {
       toast({
-        title: "Erro",
+        title: "❌ Nada para copiar",
         description: "Não há resumo para copiar.",
         variant: "destructive",
       })
       return
     }
 
-    navigator.clipboard.writeText(resumoGerado)
-    toast({
-      title: "✅ Copiado!",
-      description: "Resumo copiado para a área de transferência.",
-    })
+    navigator.clipboard
+      .writeText(resumoGerado)
+      .then(() => {
+        toast({
+          title: "✅ Copiado!",
+          description: "Resumo copiado para a área de transferência.",
+        })
+      })
+      .catch(() => {
+        toast({
+          title: "❌ Erro ao copiar",
+          description: "Não foi possível copiar o texto. Tente selecionar e copiar manualmente.",
+          variant: "destructive",
+        })
+      })
   }
 
   const baixarPDF = () => {
     if (!resumoGerado) {
       toast({
-        title: "Erro",
+        title: "❌ Nada para baixar",
         description: "Não há resumo para baixar.",
         variant: "destructive",
       })
       return
     }
+
+    // Immediate download notification
+    toast({
+      title: "📥 Iniciando download",
+      description: "Gerando arquivo PDF...",
+    })
 
     try {
       const doc = new jsPDF()
@@ -186,13 +214,13 @@ export default function ResumosPage() {
       const maxWidth = pageWidth - 2 * margin
       let yPosition = 30
 
-      // Título
+      // Title
       doc.setFontSize(16)
       doc.setFont("helvetica", "bold")
       doc.text(`Resumo ${tipoResumo} - ${new Date().toLocaleDateString()}`, margin, yPosition)
       yPosition += 15
 
-      // Informações
+      // Info
       doc.setFontSize(10)
       doc.setFont("helvetica", "normal")
       doc.text(`Tipo: ${tipoResumo === "detalhado" ? "Detalhado" : "Conciso"}`, margin, yPosition)
@@ -200,7 +228,7 @@ export default function ResumosPage() {
       doc.text(`Data: ${new Date().toLocaleDateString()}`, margin, yPosition)
       yPosition += 20
 
-      // Conteúdo
+      // Content
       doc.setFontSize(12)
       const splitText = doc.splitTextToSize(resumoGerado, maxWidth)
 
@@ -216,13 +244,17 @@ export default function ResumosPage() {
       const fileName = `resumo-${tipoResumo}-${Date.now()}.pdf`
       doc.save(fileName)
 
+      // Success notification
       toast({
         title: "✅ PDF baixado!",
-        description: "O resumo foi salvo como PDF com sucesso.",
+        description: `Arquivo "${fileName}" salvo com sucesso.`,
       })
+
+      console.log("PDF downloaded successfully:", fileName)
     } catch (error) {
+      console.error("Error generating PDF:", error)
       toast({
-        title: "Erro",
+        title: "❌ Erro no download",
         description: "Não foi possível gerar o PDF. Tente novamente.",
         variant: "destructive",
       })
@@ -233,69 +265,93 @@ export default function ResumosPage() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Notificação de início do upload
+    console.log("File selected:", file.name, file.size, file.type)
+
+    // Immediate upload notification
     toast({
       title: "📤 Upload iniciado",
-      description: `Processando arquivo: ${file.name}`,
+      description: `Processando arquivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
     })
 
-    // Verificações
+    // File validation
     if (file.type !== "application/pdf") {
       toast({
-        title: "Erro",
+        title: "❌ Erro de formato",
         description: "Por favor, selecione apenas arquivos PDF.",
         variant: "destructive",
       })
+      if (fileInputRef.current) fileInputRef.current.value = ""
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
       toast({
-        title: "Erro",
+        title: "❌ Arquivo muito grande",
         description: "O arquivo deve ter no máximo 10MB.",
         variant: "destructive",
       })
+      if (fileInputRef.current) fileInputRef.current.value = ""
       return
     }
 
     setIsUploadLoading(true)
 
     try {
+      console.log("Creating FormData...")
       const formData = new FormData()
       formData.append("file", file)
       formData.append("tipo", tipoResumo)
 
+      console.log("Sending request to API...")
       const response = await fetch("/api/resumo-pdf", {
         method: "POST",
         body: formData,
       })
 
+      console.log("Response status:", response.status)
       const data = await response.json()
+      console.log("Response data:", data)
 
       if (!response.ok) {
-        throw new Error(data.error || "Erro ao processar PDF")
+        throw new Error(data.error || `HTTP ${response.status}`)
       }
 
-      if (data.success && data.resumo) {
+      if (data.success && data.resumo && data.textoExtraido) {
+        // Set the generated content
         setResumoGerado(data.resumo)
-        setTexto(data.textoExtraido || "")
-        setTextoOriginalAtual(data.textoExtraido || "")
+        setTexto(data.textoExtraido)
+        setTextoOriginalAtual(data.textoExtraido)
 
-        // Mudar para a aba "Gerar" para mostrar o resultado
+        // Switch to "Gerar" tab to show results
         setActiveTab("gerar")
 
+        // Success notification
         toast({
-          title: "✅ PDF processado!",
-          description: "O resumo foi gerado a partir do seu PDF. Confira na aba 'Gerar'.",
+          title: "✅ PDF processado com sucesso!",
+          description: `Resumo ${tipoResumo} gerado a partir de "${data.nomeArquivo}". Confira na aba 'Gerar'.`,
         })
+
+        console.log("PDF processed successfully")
       } else {
         throw new Error("Resposta inválida do servidor")
       }
     } catch (error) {
-      console.error("Erro no upload:", error)
+      console.error("Upload error:", error)
+
+      let errorMessage = "Não foi possível processar o PDF. Tente novamente."
+      if (error instanceof Error) {
+        if (error.message.includes("fetch")) {
+          errorMessage = "Erro de conexão. Verifique sua internet e tente novamente."
+        } else if (error.message.includes("API")) {
+          errorMessage = "Erro no serviço de resumo. Tente novamente em alguns minutos."
+        } else {
+          errorMessage = error.message
+        }
+      }
+
       toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Não foi possível processar o PDF. Tente novamente.",
+        title: "❌ Erro no processamento",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
