@@ -99,19 +99,20 @@ As organizações que abraçam esta transformação de forma estratégica e hol�
 
 O futuro pertence às organizações que conseguem equilibrar inovação tecnológica com excelência operacional, criando ecossistemas digitais que geram valor de forma sustentável e responsável. A transformação digital não é um destino, mas sim uma jornada contínua de evolução e adaptação às demandas de um mundo em constante mudança.`
 
-    // Verificar se a API key da OpenAI está disponível
+    // Usar exatamente a mesma API e prompts da página principal
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
       console.error("OpenAI API key not found")
       return Response.json({ error: "Serviço de resumo temporariamente indisponível" }, { status: 503 })
     }
 
+    // Usar os mesmos prompts da API principal (/api/resumo)
     const prompt =
       tipo === "detalhado"
-        ? `Crie um resumo detalhado e bem estruturado do seguinte texto acadêmico. Organize as informações em seções claras com títulos e subtópicos. Mantenha a estrutura hierárquica e inclua os pontos mais importantes de cada seção. Use formatação clara e didática:
+        ? `Analise o seguinte texto e crie um resumo detalhado e bem estruturado. Organize as informações de forma clara e didática, mantendo a profundidade do conteúdo original. Use parágrafos bem desenvolvidos e uma linguagem acadêmica fluente:
 
 ${textoExtraido}`
-        : `Crie um resumo conciso e objetivo do seguinte texto acadêmico, destacando apenas os pontos principais e mais relevantes. Use uma linguagem clara e direta. Organize em tópicos quando necessário para facilitar a compreensão:
+        : `Analise o seguinte texto e crie um resumo conciso que capture os pontos mais importantes. Mantenha a clareza e objetividade, usando uma linguagem fluente e bem estruturada:
 
 ${textoExtraido}`
 
@@ -128,7 +129,7 @@ ${textoExtraido}`
             {
               role: "system",
               content:
-                "Você é um assistente especializado em criar resumos acadêmicos claros, bem estruturados e informativos. Sempre organize o conteúdo de forma lógica e use formatação adequada. Não inclua títulos com nomes de arquivos no resumo. Foque na qualidade e clareza do conteúdo.",
+                "Você é um assistente especializado em criar resumos acadêmicos de alta qualidade. Sempre produza textos bem estruturados, com linguagem fluente e acadêmica. Evite listas simples ou bullet points - prefira parágrafos bem desenvolvidos que fluam naturalmente. Mantenha o mesmo padrão de qualidade independentemente da fonte do texto.",
             },
             {
               role: "user",
@@ -163,65 +164,31 @@ ${textoExtraido}`
     } catch (apiError) {
       console.error("OpenAI API error:", apiError)
 
-      // Fallback para resumo simples se a API falhar
+      // Fallback com qualidade acadêmica similar à página principal
       const resumoFallback =
         tipo === "detalhado"
-          ? `# Resumo Detalhado
+          ? `A transformação digital representa uma mudança paradigmática fundamental que redefine completamente a forma como as organizações modernas operam e criam valor. Este processo transcende a simples adoção de tecnologias, constituindo-se como uma revolução holística que permeia todos os aspectos da estrutura organizacional.
 
-## Transformação Digital
+No contexto contemporâneo, a transformação digital emerge como uma necessidade imperativa para a sobrevivência empresarial. As organizações que abraçam esta mudança posicionam-se estrategicamente para prosperar na economia digital, enquanto aquelas que resistem enfrentam o risco de obsolescência competitiva.
 
-A transformação digital representa uma mudança fundamental nas organizações modernas, integrando tecnologias avançadas em todas as áreas de negócio.
+As tecnologias habilitadoras desta transformação incluem a Inteligência Artificial e Machine Learning, que automatizam processos complexos e geram insights preditivos; a Internet das Coisas, que conecta dispositivos e coleta dados em tempo real; a computação em nuvem, que oferece infraestrutura escalável; e a automação de processos, que otimiza operações repetitivas.
 
-### Principais Tecnologias
-- **Inteligência Artificial e Machine Learning**: Automação inteligente e análise preditiva
-- **Internet das Coisas (IoT)**: Conectividade de dispositivos e coleta de dados em tempo real
-- **Computação em Nuvem**: Infraestrutura escalável e flexível
-- **Big Data e Analytics**: Transformação de dados em insights estratégicos
-- **Automação de Processos**: Otimização de operações repetitivas
+Os impactos organizacionais são profundos e multidimensionais. A cultura empresarial evolui para abraçar a experimentação e o aprendizado contínuo, enquanto as estruturas hierárquicas tradicionais dão lugar a organizações mais ágeis e colaborativas. Os processos de negócio são redesenhados para aproveitar as capacidades digitais, resultando em maior eficiência e qualidade.
 
-### Impactos Organizacionais
-- Mudança na cultura empresarial
-- Novos modelos de negócio
-- Melhoria da experiência do cliente
-- Otimização de processos internos
-- Maior eficiência operacional
+A experiência do cliente é revolucionada através de jornadas personalizadas e interfaces omnichannel. As organizações utilizam análise avançada de dados para compreender profundamente as necessidades dos clientes, criando ofertas altamente customizadas e experiências envolventes.
 
-### Desafios
-- Resistência à mudança
-- Necessidade de capacitação
-- Investimentos em tecnologia
-- Segurança de dados
-- Integração de sistemas
+Os principais desafios incluem a resistência à mudança, a complexidade da integração tecnológica, a escassez de talentos digitais e questões de segurança cibernética. A superação destes obstáculos requer uma abordagem estratégica que considere não apenas a tecnologia, mas também as pessoas e os processos organizacionais.
 
-### Benefícios
-- Maior competitividade
-- Redução de custos
-- Melhoria na tomada de decisões
-- Inovação acelerada
-- Sustentabilidade empresarial
+O sucesso da implementação depende de uma visão clara, liderança comprometida, investimento em capacitação e adoção de metodologias ágeis. A transformação digital não é um destino, mas uma jornada contínua de evolução e adaptação às demandas de um mundo em constante mudança.`
+          : `A transformação digital representa uma mudança fundamental na forma como as organizações operam, transcendendo a mera implementação de tecnologias para constituir uma revolução holística que permeia todos os aspectos empresariais. No contexto atual de hiperconectividade, esta transformação tornou-se uma necessidade imperativa para a sobrevivência e prosperidade organizacional.
 
-## Conclusão
-A implementação bem-sucedida requer abordagem estratégica considerando tecnologia, pessoas e processos.`
-          : `**Pontos Principais da Transformação Digital:**
+As principais tecnologias habilitadoras incluem a Inteligência Artificial e Machine Learning, que automatizam processos complexos e geram análises preditivas; a Internet das Coisas, que conecta dispositivos e coleta dados em tempo real; a computação em nuvem, que oferece infraestrutura escalável; e a automação de processos, que otimiza operações repetitivas e libera recursos humanos para atividades estratégicas.
 
-• **Definição**: Integração de tecnologias digitais em todas as áreas empresariais, mudando fundamentalmente como as empresas operam
+Os impactos organizacionais são profundos, abrangendo mudanças na cultura empresarial, estruturas organizacionais e processos de negócio. A cultura evolui para abraçar a experimentação e o aprendizado contínuo, enquanto as hierarquias tradicionais dão lugar a estruturas mais ágeis e colaborativas. A experiência do cliente é revolucionada através de jornadas personalizadas e interfaces omnichannel que utilizam análise avançada de dados.
 
-• **Tecnologias Principais**: 
-  - Inteligência Artificial e Machine Learning
-  - Internet das Coisas (IoT)
-  - Computação em Nuvem
-  - Big Data e Analytics
-  - Automação de Processos
+Os principais desafios incluem a resistência à mudança, complexidade da integração tecnológica, escassez de talentos digitais e questões de segurança cibernética. A superação destes obstáculos requer programas abrangentes de gestão da mudança, investimento em capacitação e implementação de frameworks robustos de governança.
 
-• **Impactos**: Mudança cultural, novos modelos de negócio, melhoria da experiência do cliente, otimização de processos
-
-• **Desafios**: Resistência à mudança, necessidade de capacitação, investimentos em tecnologia, segurança de dados
-
-• **Benefícios**: Maior competitividade, redução de custos, melhoria na tomada de decisões, inovação acelerada
-
-• **Implementação**: Requer abordagem estratégica holística considerando tecnologia, pessoas e processos organizacionais
-
-**Conclusão**: A transformação digital é essencial para a sobrevivência e prosperidade das organizações no século XXI.`
+O sucesso da transformação digital depende de uma abordagem estratégica que considere tecnologia, pessoas e processos organizacionais. As organizações que conseguem equilibrar inovação tecnológica com excelência operacional posicionam-se para prosperar na economia digital, criando valor sustentável para todos os stakeholders.`
 
       return Response.json({
         success: true,
