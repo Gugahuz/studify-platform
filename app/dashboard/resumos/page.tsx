@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Upload, History, Loader2, Copy, Download, CheckCircle } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { FileText, Upload, History, Loader2, Copy, Download, CheckCircle, AlertCircle } from "lucide-react"
 import { ResumoModal } from "@/components/resumo-modal"
 import jsPDF from "jspdf"
 
@@ -24,6 +24,11 @@ type Resumo = {
   nomeArquivo?: string
 }
 
+type NotificationState = {
+  type: "success" | "error" | "info" | null
+  message: string
+}
+
 export default function ResumosPage() {
   const [texto, setTexto] = useState("")
   const [tipoResumo, setTipoResumo] = useState<"conciso" | "detalhado">("conciso")
@@ -35,8 +40,26 @@ export default function ResumosPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isUploadLoading, setIsUploadLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("gerar")
+  const [notification, setNotification] = useState<NotificationState>({ type: null, message: "" })
+
+  // Estados específicos para upload
+  const [uploadResumo, setUploadResumo] = useState("")
+  const [uploadTextoOriginal, setUploadTextoOriginal] = useState("")
+  const [uploadNotification, setUploadNotification] = useState<NotificationState>({ type: null, message: "" })
+  const [tipoResumoUpload, setTipoResumoUpload] = useState<"conciso" | "detalhado">("conciso")
+
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { toast } = useToast()
+
+  // Função para mostrar notificação
+  const showNotification = (type: "success" | "error" | "info", message: string, isUpload = false) => {
+    if (isUpload) {
+      setUploadNotification({ type, message })
+      setTimeout(() => setUploadNotification({ type: null, message: "" }), 5000)
+    } else {
+      setNotification({ type, message })
+      setTimeout(() => setNotification({ type: null, message: "" }), 5000)
+    }
+  }
 
   // Carregar dados do localStorage
   useEffect(() => {
@@ -80,11 +103,7 @@ export default function ResumosPage() {
 
   const gerarResumo = async () => {
     if (!texto.trim()) {
-      toast({
-        title: "Erro",
-        description: "Por favor, insira um texto para resumir.",
-        variant: "destructive",
-      })
+      showNotification("error", "Por favor, insira um texto para resumir.")
       return
     }
 
@@ -109,23 +128,19 @@ export default function ResumosPage() {
       setResumoGerado(data.resumo)
       setTextoOriginalAtual(texto.trim())
 
-      toast({
-        title: "✅ Resumo gerado!",
-        description: "Seu resumo foi criado com sucesso.",
-      })
+      showNotification("success", "✅ Resumo gerado com sucesso!")
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível gerar o resumo. Tente novamente.",
-        variant: "destructive",
-      })
+      showNotification("error", "❌ Erro ao gerar resumo. Tente novamente.")
     } finally {
       setIsLoading(false)
     }
   }
 
   const salvarResumo = () => {
-    if (!resumoGerado) return
+    if (!resumoGerado) {
+      showNotification("error", "❌ Nenhum resumo para salvar.")
+      return
+    }
 
     const novoResumo: Resumo = {
       id: Date.now(),
@@ -137,30 +152,51 @@ export default function ResumosPage() {
     }
 
     setResumosSalvos([novoResumo, ...resumosSalvos])
+    showNotification("success", "✅ Resumo salvo no histórico!")
+  }
 
-    toast({
-      title: "✅ Resumo salvo!",
-      description: "Adicionado ao histórico. Veja na aba 'Histórico'.",
-    })
+  const salvarResumoUpload = () => {
+    if (!uploadResumo) {
+      showNotification("error", "❌ Nenhum resumo para salvar.", true)
+      return
+    }
+
+    const novoResumo: Resumo = {
+      id: Date.now(),
+      titulo: `Resumo ${tipoResumoUpload} - ${new Date().toLocaleDateString()}`,
+      conteudo: uploadResumo,
+      textoOriginal: uploadTextoOriginal,
+      tipo: tipoResumoUpload,
+      data: new Date().toLocaleDateString(),
+      nomeArquivo: "PDF Upload",
+    }
+
+    setResumosSalvos([novoResumo, ...resumosSalvos])
+    showNotification("success", "✅ Resumo salvo no histórico!", true)
   }
 
   const copiarResumo = () => {
-    if (!resumoGerado) return
+    if (!resumoGerado) {
+      showNotification("error", "❌ Nenhum resumo para copiar.")
+      return
+    }
 
     navigator.clipboard.writeText(resumoGerado)
-    toast({
-      title: "✅ Copiado!",
-      description: "Resumo copiado para área de transferência.",
-    })
+    showNotification("success", "✅ Resumo copiado!")
   }
 
-  const baixarPDF = () => {
-    if (!resumoGerado) return
+  const copiarResumoUpload = () => {
+    if (!uploadResumo) {
+      showNotification("error", "❌ Nenhum resumo para copiar.", true)
+      return
+    }
 
-    toast({
-      title: "📥 Gerando PDF...",
-      description: "Preparando download do arquivo.",
-    })
+    navigator.clipboard.writeText(uploadResumo)
+    showNotification("success", "✅ Resumo copiado!", true)
+  }
+
+  const baixarPDF = (resumoParaBaixar: string, tipoParaBaixar: string) => {
+    if (!resumoParaBaixar) return
 
     try {
       const doc = new jsPDF()
@@ -169,24 +205,16 @@ export default function ResumosPage() {
       const maxWidth = pageWidth - 2 * margin
 
       doc.setFontSize(16)
-      doc.text(`Resumo ${tipoResumo}`, margin, 30)
+      doc.text(`Resumo ${tipoParaBaixar}`, margin, 30)
 
       doc.setFontSize(12)
-      const splitText = doc.splitTextToSize(resumoGerado, maxWidth)
+      const splitText = doc.splitTextToSize(resumoParaBaixar, maxWidth)
       doc.text(splitText, margin, 50)
 
       doc.save(`resumo-${Date.now()}.pdf`)
-
-      toast({
-        title: "✅ PDF baixado!",
-        description: "Arquivo salvo com sucesso.",
-      })
+      showNotification("success", "✅ PDF baixado com sucesso!")
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Falha ao gerar PDF.",
-        variant: "destructive",
-      })
+      showNotification("error", "❌ Erro ao gerar PDF.")
     }
   }
 
@@ -194,27 +222,15 @@ export default function ResumosPage() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Notificação de upload iniciado
-    toast({
-      title: "📤 Upload iniciado",
-      description: `Processando: ${file.name}`,
-    })
+    showNotification("info", "📤 Processando arquivo...", true)
 
     if (file.type !== "application/pdf") {
-      toast({
-        title: "Erro",
-        description: "Apenas arquivos PDF são aceitos.",
-        variant: "destructive",
-      })
+      showNotification("error", "❌ Apenas arquivos PDF são aceitos.", true)
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "Erro",
-        description: "Arquivo muito grande (máx. 10MB).",
-        variant: "destructive",
-      })
+      showNotification("error", "❌ Arquivo muito grande (máx. 10MB).", true)
       return
     }
 
@@ -223,7 +239,7 @@ export default function ResumosPage() {
     try {
       const formData = new FormData()
       formData.append("file", file)
-      formData.append("tipo", tipoResumo)
+      formData.append("tipo", tipoResumoUpload)
 
       const response = await fetch("/api/resumo-pdf", {
         method: "POST",
@@ -233,24 +249,14 @@ export default function ResumosPage() {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        setResumoGerado(data.resumo)
-        setTexto(data.textoExtraido)
-        setTextoOriginalAtual(data.textoExtraido)
-        setActiveTab("gerar")
-
-        toast({
-          title: "✅ PDF processado!",
-          description: "Resumo gerado com sucesso. Confira na aba 'Gerar'.",
-        })
+        setUploadResumo(data.resumo)
+        setUploadTextoOriginal(data.textoExtraido)
+        showNotification("success", "✅ PDF processado com sucesso!", true)
       } else {
         throw new Error(data.error || "Erro no processamento")
       }
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Falha ao processar PDF. Tente novamente.",
-        variant: "destructive",
-      })
+      showNotification("error", "❌ Falha ao processar PDF. Tente novamente.", true)
     } finally {
       setIsUploadLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -304,6 +310,15 @@ export default function ResumosPage() {
         </TabsList>
 
         <TabsContent value="gerar" className="mt-6">
+          {notification.type && (
+            <Alert
+              className={`mb-4 ${notification.type === "success" ? "border-green-200 bg-green-50" : notification.type === "error" ? "border-red-200 bg-red-50" : "border-blue-200 bg-blue-50"}`}
+            >
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{notification.message}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Input */}
             <Card className="border-blue-100">
@@ -378,7 +393,7 @@ export default function ResumosPage() {
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Salvar
                       </Button>
-                      <Button onClick={baixarPDF} variant="outline" size="sm">
+                      <Button onClick={() => baixarPDF(resumoGerado, tipoResumo)} variant="outline" size="sm">
                         <Download className="h-4 w-4 mr-2" />
                         Baixar
                       </Button>
@@ -397,62 +412,114 @@ export default function ResumosPage() {
         </TabsContent>
 
         <TabsContent value="upload" className="mt-6">
-          <Card className="border-blue-100">
-            <CardHeader>
-              <CardTitle>Upload de arquivo</CardTitle>
-              <CardDescription>Envie um arquivo PDF para gerar resumo automaticamente</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tipo-upload">Tipo de resumo</Label>
-                  <Select value={tipoResumo} onValueChange={(value: "conciso" | "detalhado") => setTipoResumo(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="conciso">Conciso (pontos principais)</SelectItem>
-                      <SelectItem value="detalhado">Detalhado (estruturado)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+          {uploadNotification.type && (
+            <Alert
+              className={`mb-4 ${uploadNotification.type === "success" ? "border-green-200 bg-green-50" : uploadNotification.type === "error" ? "border-red-200 bg-red-50" : "border-blue-200 bg-blue-50"}`}
+            >
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{uploadNotification.message}</AlertDescription>
+            </Alert>
+          )}
 
-                <div
-                  className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                  onClick={() => !isUploadLoading && fileInputRef.current?.click()}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                >
-                  {isUploadLoading ? (
-                    <>
-                      <Loader2 className="h-12 w-12 text-blue-500 mb-4 animate-spin" />
-                      <h3 className="text-lg font-medium mb-2">Processando PDF...</h3>
-                      <p className="text-gray-500">Extraindo texto e gerando resumo</p>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-12 w-12 text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium mb-2">Arraste e solte seu arquivo aqui</h3>
-                      <p className="text-gray-500 mb-4">ou</p>
-                      <Button type="button" disabled={isUploadLoading}>
-                        Selecionar arquivo
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Upload Section */}
+            <Card className="border-orange-200">
+              <CardHeader>
+                <CardTitle>Upload de arquivo</CardTitle>
+                <CardDescription>Envie um arquivo PDF para gerar resumo automaticamente</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo-upload">Tipo de resumo</Label>
+                    <Select
+                      value={tipoResumoUpload}
+                      onValueChange={(value: "conciso" | "detalhado") => setTipoResumoUpload(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="conciso">Conciso (pontos principais)</SelectItem>
+                        <SelectItem value="detalhado">Detalhado (estruturado)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div
+                    className="flex flex-col items-center justify-center border-2 border-dashed border-orange-300 rounded-lg p-12 text-center cursor-pointer hover:border-orange-400 transition-colors min-h-[300px]"
+                    onClick={() => !isUploadLoading && fileInputRef.current?.click()}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                  >
+                    {isUploadLoading ? (
+                      <>
+                        <Loader2 className="h-12 w-12 text-orange-500 mb-4 animate-spin" />
+                        <h3 className="text-lg font-medium mb-2">Processando PDF...</h3>
+                        <p className="text-gray-500">Extraindo texto e gerando resumo</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-12 w-12 text-orange-400 mb-4" />
+                        <h3 className="text-lg font-medium mb-2">Arraste e solte seu arquivo aqui</h3>
+                        <p className="text-gray-500 mb-4">ou</p>
+                        <Button type="button" disabled={isUploadLoading} className="bg-green-600 hover:bg-green-700">
+                          Selecionar arquivo
+                        </Button>
+                        <p className="text-xs text-gray-500 mt-4">Formato suportado: PDF (máx. 10MB)</p>
+                      </>
+                    )}
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={isUploadLoading}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Resumo Section */}
+            <Card className="border-orange-200">
+              <CardHeader>
+                <CardTitle>Resumo</CardTitle>
+                <CardDescription>O resumo do seu PDF aparecerá aqui</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {uploadResumo ? (
+                  <div className="space-y-4">
+                    <div className="bg-orange-50 p-4 rounded-lg min-h-[300px]">
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{uploadResumo}</div>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button onClick={copiarResumoUpload} variant="outline" size="sm">
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copiar
                       </Button>
-                      <p className="text-xs text-gray-500 mt-4">Formato suportado: PDF (máx. 10MB)</p>
-                    </>
-                  )}
-                </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  disabled={isUploadLoading}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                      <Button onClick={salvarResumoUpload} variant="outline" size="sm">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Salvar
+                      </Button>
+                      <Button onClick={() => baixarPDF(uploadResumo, tipoResumoUpload)} variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Baixar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center min-h-[300px] text-gray-500">
+                    <FileText className="h-12 w-12 mb-4 text-orange-300" />
+                    <p>Seu resumo aparecerá aqui</p>
+                    <p className="text-sm">Faça upload de um PDF para começar</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="historico" className="mt-6">
@@ -481,7 +548,7 @@ export default function ResumosPage() {
                             {resumo.tipo === "detalhado" ? "Detalhado" : "Conciso"}
                           </span>
                           {resumo.nomeArquivo && (
-                            <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                            <span className="px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800">
                               PDF
                             </span>
                           )}
