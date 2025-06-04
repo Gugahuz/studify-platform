@@ -423,7 +423,7 @@ export default function ResumosPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Upload Section */}
-            <Card className="border-orange-200">
+            <Card className="border-green-200">
               <CardHeader>
                 <CardTitle>Upload de arquivo</CardTitle>
                 <CardDescription>Envie um arquivo PDF para gerar resumo automaticamente</CardDescription>
@@ -447,20 +447,20 @@ export default function ResumosPage() {
                   </div>
 
                   <div
-                    className="flex flex-col items-center justify-center border-2 border-dashed border-orange-300 rounded-lg p-12 text-center cursor-pointer hover:border-orange-400 transition-colors min-h-[300px]"
+                    className="flex flex-col items-center justify-center border-2 border-dashed border-green-300 rounded-lg p-12 text-center cursor-pointer hover:border-green-400 transition-colors min-h-[300px]"
                     onClick={() => !isUploadLoading && fileInputRef.current?.click()}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
                   >
                     {isUploadLoading ? (
                       <>
-                        <Loader2 className="h-12 w-12 text-orange-500 mb-4 animate-spin" />
+                        <Loader2 className="h-12 w-12 text-green-500 mb-4 animate-spin" />
                         <h3 className="text-lg font-medium mb-2">Processando PDF...</h3>
                         <p className="text-gray-500">Extraindo texto e gerando resumo</p>
                       </>
                     ) : (
                       <>
-                        <Upload className="h-12 w-12 text-orange-400 mb-4" />
+                        <Upload className="h-12 w-12 text-green-400 mb-4" />
                         <h3 className="text-lg font-medium mb-2">Arraste e solte seu arquivo aqui</h3>
                         <p className="text-gray-500 mb-4">ou</p>
                         <Button type="button" disabled={isUploadLoading} className="bg-green-600 hover:bg-green-700">
@@ -484,7 +484,7 @@ export default function ResumosPage() {
             </Card>
 
             {/* Resumo Section */}
-            <Card className="border-orange-200">
+            <Card className="border-green-200">
               <CardHeader>
                 <CardTitle>Resumo</CardTitle>
                 <CardDescription>O resumo do seu PDF aparecerá aqui</CardDescription>
@@ -492,7 +492,7 @@ export default function ResumosPage() {
               <CardContent>
                 {uploadResumo ? (
                   <div className="space-y-4">
-                    <div className="bg-orange-50 p-4 rounded-lg min-h-[300px]">
+                    <div className="bg-green-50 p-4 rounded-lg min-h-[300px]">
                       <div className="whitespace-pre-wrap text-sm leading-relaxed">{uploadResumo}</div>
                     </div>
                     <div className="flex gap-2 flex-wrap">
@@ -512,7 +512,7 @@ export default function ResumosPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center min-h-[300px] text-gray-500">
-                    <FileText className="h-12 w-12 mb-4 text-orange-300" />
+                    <FileText className="h-12 w-12 mb-4 text-green-300" />
                     <p>Seu resumo aparecerá aqui</p>
                     <p className="text-sm">Faça upload de um PDF para começar</p>
                   </div>
@@ -548,7 +548,7 @@ export default function ResumosPage() {
                             {resumo.tipo === "detalhado" ? "Detalhado" : "Conciso"}
                           </span>
                           {resumo.nomeArquivo && (
-                            <span className="px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                            <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
                               PDF
                             </span>
                           )}
