@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import type React from "react"
+
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -9,11 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileText, Upload, History, Loader2, Copy, Download } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { ResumoModal } from "@/components/resumo-modal"
+import jsPDF from "jspdf"
 
 type Resumo = {
   id: number
   titulo: string
   conteudo: string
+  textoOriginal?: string
   tipo: "conciso" | "detalhado"
   data: string
 }
@@ -24,6 +29,10 @@ export default function ResumosPage() {
   const [resumoGerado, setResumoGerado] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [resumosSalvos, setResumosSalvos] = useState<Resumo[]>([])
+  const [selectedResumo, setSelectedResumo] = useState<Resumo | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isUploadLoading, setIsUploadLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   // Carregar resumo gerado do sessionStorage
@@ -31,6 +40,12 @@ export default function ResumosPage() {
     const savedResumo = sessionStorage.getItem("resumo-gerado")
     if (savedResumo) {
       setResumoGerado(savedResumo)
+    }
+
+    // Carregar resumos salvos do localStorage
+    const savedResumos = localStorage.getItem("resumos-salvos")
+    if (savedResumos) {
+      setResumosSalvos(JSON.parse(savedResumos))
     }
   }, [])
 
@@ -40,6 +55,13 @@ export default function ResumosPage() {
       sessionStorage.setItem("resumo-gerado", resumoGerado)
     }
   }, [resumoGerado])
+
+  // Salvar resumos no localStorage
+  useEffect(() => {
+    if (resumosSalvos.length > 0) {
+      localStorage.setItem("resumos-salvos", JSON.stringify(resumosSalvos))
+    }
+  }, [resumosSalvos])
 
   const gerarResumo = async () => {
     if (!texto.trim()) {
@@ -93,6 +115,7 @@ export default function ResumosPage() {
       id: Date.now(),
       titulo: `Resumo ${tipoResumo} - ${new Date().toLocaleDateString()}`,
       conteudo: resumoGerado,
+      textoOriginal: texto,
       tipo: tipoResumo,
       data: new Date().toLocaleDateString(),
     }
@@ -100,7 +123,7 @@ export default function ResumosPage() {
     setResumosSalvos([novoResumo, ...resumosSalvos])
     toast({
       title: "Resumo salvo!",
-      description: "O resumo foi adicionado ao seu histórico.",
+      description: "O resumo foi adicionado ao seu histórico. Acesse a aba 'Histórico' para visualizar.",
     })
   }
 
@@ -110,6 +133,100 @@ export default function ResumosPage() {
       title: "Copiado!",
       description: "Resumo copiado para a área de transferência.",
     })
+  }
+
+  const baixarPDF = () => {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.width
+    const margin = 20
+    const maxWidth = pageWidth - 2 * margin
+
+    // Título
+    doc.setFontSize(16)
+    doc.text(`Resumo ${tipoResumo} - ${new Date().toLocaleDateString()}`, margin, 30)
+
+    // Tipo
+    doc.setFontSize(10)
+    doc.text(`Tipo: ${tipoResumo === "detalhado" ? "Detalhado" : "Conciso"}`, margin, 45)
+
+    // Conteúdo do resumo
+    doc.setFontSize(12)
+    const splitText = doc.splitTextToSize(resumoGerado, maxWidth)
+    doc.text(splitText, margin, 65)
+
+    doc.save(`resumo-${tipoResumo}-${Date.now()}.pdf`)
+
+    toast({
+      title: "PDF baixado!",
+      description: "O resumo foi salvo como PDF.",
+    })
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Verificar tipo de arquivo
+    if (file.type !== "application/pdf") {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione apenas arquivos PDF.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Verificar tamanho (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "Erro",
+        description: "O arquivo deve ter no máximo 10MB.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsUploadLoading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("tipo", tipoResumo)
+
+      const response = await fetch("/api/resumo-pdf", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao processar PDF")
+      }
+
+      const data = await response.json()
+      setResumoGerado(data.resumo)
+      setTexto(data.textoExtraido || "")
+
+      toast({
+        title: "PDF processado!",
+        description: "O resumo foi gerado a partir do seu PDF.",
+      })
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível processar o PDF. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploadLoading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
+  const abrirResumoCompleto = (resumo: Resumo) => {
+    setSelectedResumo(resumo)
+    setIsModalOpen(true)
   }
 
   return (
@@ -210,6 +327,10 @@ export default function ResumosPage() {
                         <Download className="h-4 w-4 mr-2" />
                         Salvar
                       </Button>
+                      <Button onClick={baixarPDF} variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Baixar
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -228,15 +349,45 @@ export default function ResumosPage() {
           <Card className="border-blue-100">
             <CardHeader>
               <CardTitle>Upload de arquivo</CardTitle>
-              <CardDescription>Envie um arquivo PDF ou documento para gerar resumo</CardDescription>
+              <CardDescription>Envie um arquivo PDF para gerar resumo</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                <Upload className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium mb-2">Arraste e solte seu arquivo aqui</h3>
-                <p className="text-gray-500 mb-4">ou</p>
-                <Button>Selecionar arquivo</Button>
-                <p className="text-xs text-gray-500 mt-4">Formatos suportados: PDF, DOC, DOCX (máx. 10MB)</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tipo-upload">Tipo de resumo</Label>
+                  <Select value={tipoResumo} onValueChange={(value: "conciso" | "detalhado") => setTipoResumo(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="conciso">Conciso (pontos principais)</SelectItem>
+                      <SelectItem value="detalhado">Detalhado (estruturado)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div
+                  className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {isUploadLoading ? (
+                    <>
+                      <Loader2 className="h-12 w-12 text-gray-400 mb-4 animate-spin" />
+                      <h3 className="text-lg font-medium mb-2">Processando PDF...</h3>
+                      <p className="text-gray-500">Aguarde enquanto extraímos o texto</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-12 w-12 text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Arraste e solte seu arquivo aqui</h3>
+                      <p className="text-gray-500 mb-4">ou</p>
+                      <Button type="button">Selecionar arquivo</Button>
+                      <p className="text-xs text-gray-500 mt-4">Formato suportado: PDF (máx. 10MB)</p>
+                    </>
+                  )}
+                </div>
+
+                <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
               </div>
             </CardContent>
           </Card>
@@ -266,7 +417,7 @@ export default function ResumosPage() {
                         >
                           {resumo.tipo === "detalhado" ? "Detalhado" : "Conciso"}
                         </span>
-                        <Button size="sm" variant="ghost">
+                        <Button size="sm" variant="ghost" onClick={() => abrirResumoCompleto(resumo)}>
                           Ver completo
                         </Button>
                       </div>
@@ -284,6 +435,11 @@ export default function ResumosPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal para visualizar resumo completo */}
+      {selectedResumo && (
+        <ResumoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} resumo={selectedResumo} />
+      )}
     </div>
   )
 }
