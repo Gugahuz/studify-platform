@@ -4,6 +4,8 @@ import { ArrowLeft, MessageCircle } from "lucide-react"
 import { ChatInterface } from "@/components/chat-interface"
 import Link from "next/link"
 
+export const dynamic = "force-dynamic"
+
 export default function ChatPage() {
   return (
     <div className="space-y-6">
@@ -28,15 +30,9 @@ export default function ChatPage() {
       <Card className="border-studify-primary/20 shadow-sm">
         <CardHeader className="bg-gradient-to-r from-studify-primary/5 to-studify-primary/10">
           <CardTitle className="flex items-center gap-2 text-studify-primary">
-            <img
-              src="/images/studo-mascot.png"
-              alt="Studo Mascot"
-              className="h-6 w-6 object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.style.display = "none"
-              }}
-            />
+            <span className="h-6 w-6 rounded-full bg-studify-primary flex items-center justify-center">
+              <span className="text-white text-xs font-bold">S</span>
+            </span>
             Chat com Studo
           </CardTitle>
           <CardDescription>

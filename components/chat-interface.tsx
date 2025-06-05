@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SendHorizontal, Loader2 } from "lucide-react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useUserData } from "@/hooks/use-user-data"
 
 export function ChatInterface() {
   const { userProfile } = useUserData()
+  const [imageError, setImageError] = useState(false)
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     api: "/api/chat",
     initialMessages: [],
@@ -56,16 +57,16 @@ export function ChatInterface() {
             {/* Avatar do Studo */}
             <div className="mb-8">
               <div className="w-24 h-24 rounded-full bg-studify-primary flex items-center justify-center shadow-lg">
-                <img
-                  src="/images/studo-mascot.png"
-                  alt="Studo Mascot"
-                  className="w-16 h-16 object-contain"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.style.display = "none"
-                    target.parentElement!.innerHTML = '<span class="text-white font-bold text-2xl">S</span>'
-                  }}
-                />
+                {!imageError ? (
+                  <img
+                    src="/images/studo-mascot.png"
+                    alt="Studo Mascot"
+                    className="w-16 h-16 object-contain"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <span className="text-white font-bold text-2xl">S</span>
+                )}
               </div>
             </div>
 
@@ -101,25 +102,66 @@ export function ChatInterface() {
     )
   }
 
+  // Tela de loading durante o envio da primeira mensagem
+  if (messages.length === 0 && isLoading) {
+    return (
+      <div className="flex flex-col h-full bg-gray-50">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <div className="mb-8">
+            <div className="w-24 h-24 rounded-full bg-studify-primary flex items-center justify-center shadow-lg">
+              <Loader2 className="w-8 h-8 text-white animate-spin" />
+            </div>
+          </div>
+          <div className="max-w-md">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Studo está pensando...</h3>
+            <p className="text-gray-600 leading-relaxed">Preparando uma resposta personalizada para você!</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Interface de chat normal quando há mensagens
   return (
     <div className="flex flex-col h-full bg-white">
+      {/* Header do chat */}
+      <div className="p-4 bg-white border-b">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-studify-primary flex items-center justify-center">
+            {!imageError ? (
+              <img
+                src="/images/studo-mascot.png"
+                alt="Studo"
+                className="w-6 h-6 object-contain"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <span className="text-white font-bold text-sm">S</span>
+            )}
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900">Studo</h3>
+            <p className="text-sm text-gray-500">Assistente de estudos</p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`flex gap-3 max-w-[85%] ${message.role === "user" ? "flex-row-reverse" : ""}`}>
               {message.role === "assistant" ? (
                 <div className="h-10 w-10 rounded-full overflow-hidden bg-studify-primary flex items-center justify-center flex-shrink-0">
-                  <img
-                    src="/images/studo-mascot.png"
-                    alt="Studo"
-                    className="h-8 w-8 object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      target.style.display = "none"
-                      target.parentElement!.innerHTML = '<span class="text-white font-bold text-sm">S</span>'
-                    }}
-                  />
+                  {!imageError ? (
+                    <img
+                      src="/images/studo-mascot.png"
+                      alt="Studo"
+                      className="h-6 w-6 object-contain"
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    <span className="text-white font-bold text-sm">S</span>
+                  )}
                 </div>
               ) : (
                 <Avatar className="h-10 w-10 flex-shrink-0">
@@ -146,7 +188,16 @@ export function ChatInterface() {
           <div className="flex justify-start">
             <div className="flex gap-3 max-w-[85%]">
               <div className="h-10 w-10 rounded-full overflow-hidden bg-studify-primary flex items-center justify-center flex-shrink-0">
-                <img src="/images/studo-mascot.png" alt="Studo" className="h-8 w-8 object-contain" />
+                {!imageError ? (
+                  <img
+                    src="/images/studo-mascot.png"
+                    alt="Studo"
+                    className="h-6 w-6 object-contain"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <span className="text-white font-bold text-sm">S</span>
+                )}
               </div>
               <div className="rounded-lg p-4 bg-gray-50 border border-gray-200">
                 <div className="flex items-center gap-2">
@@ -180,5 +231,4 @@ export function ChatInterface() {
   )
 }
 
-// Export as default for compatibility
 export default ChatInterface

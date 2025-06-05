@@ -4,18 +4,18 @@ import "./globals.css"
 import { ToastProvider } from "@/components/toast-provider"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.dev",
+  title: "Studify - Assistente de Estudos",
+  description: "Organize seus estudos com a ajuda da inteligência artificial",
+  generator: "Next.js",
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <body>
         <ToastProvider>{children}</ToastProvider>
       </body>

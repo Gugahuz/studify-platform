@@ -3,9 +3,7 @@ import { LoginForm } from "@/components/login-form"
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Mobile Layout - Login First */}
       <div className="md:hidden min-h-screen bg-studify-white flex flex-col">
-        {/* Header compacto para mobile */}
         <div className="bg-gradient-to-r from-studify-green to-studify-green text-studify-white p-6 text-center">
           <div className="flex items-center justify-center mb-4">
             <span className="studify-logo text-studify-white text-5xl font-bold tracking-wide drop-shadow-lg">
@@ -15,7 +13,6 @@ export default function Home() {
           <p className="text-base font-medium text-studify-white/90">Never stop learning</p>
         </div>
 
-        {/* Login Section - Prioridade no mobile */}
         <div className="flex-1 p-6 flex flex-col justify-center">
           <div className="w-full max-w-sm mx-auto">
             <div className="text-center mb-6">
@@ -26,7 +23,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Features compactas no final */}
         <div className="bg-studify-lightgreen/10 p-4 space-y-2">
           <div className="flex items-center text-sm">
             <div className="bg-studify-green rounded-full p-1 mr-2">
@@ -70,7 +66,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Desktop Layout - Original */}
       <div className="hidden md:flex md:flex-1 bg-gradient-to-br from-studify-green to-studify-green text-studify-white p-6 md:p-12 flex-col justify-center">
         <div className="max-w-md mx-auto md:mx-0">
           <div className="mb-6 flex justify-start items-center h-16">
@@ -128,7 +123,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Desktop Login Section */}
       <div className="hidden md:flex md:flex-1 bg-studify-white p-6 md:p-12 items-center justify-center">
         <div className="w-full max-w-md">
           <div className="text-center mb-8"></div>

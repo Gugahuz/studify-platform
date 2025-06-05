@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -40,9 +39,7 @@ export function LoginForm() {
 
       if (result.success && result.user) {
         localStorage.setItem("testUser", JSON.stringify(result.user))
-
         toast.success("Login realizado!", "Bem-vindo de volta! Redirecionando para o dashboard...")
-
         await new Promise((resolve) => setTimeout(resolve, 1500))
         router.push("/dashboard")
       } else {
@@ -80,8 +77,6 @@ export function LoginForm() {
       if (error) {
         await logLoginAttempt(formData.email, false, undefined, error.message)
 
-        const errorMessage = "Erro desconhecido no login."
-
         if (error.message.includes("Invalid login credentials")) {
           toast.error("Credenciais incorretas", "Email ou senha estão incorretos. Verifique e tente novamente.")
         } else if (error.message.includes("Email not confirmed")) {
@@ -113,18 +108,16 @@ export function LoginForm() {
               password: formData.senha,
             })
           } catch (createError) {
-            // Continue even if profile creation fails
+            console.log("Profile creation failed, continuing...")
           }
         }
 
         toast.success("Login realizado com sucesso!", "Redirecionando para o dashboard...")
-
         await new Promise((resolve) => setTimeout(resolve, 1500))
         router.push("/dashboard")
       }
     } catch (error) {
       await logLoginAttempt(formData.email, false, undefined, "Erro inesperado")
-
       toast.error("Ocorreu um erro inesperado. Tente novamente.", "Erro inesperado")
     } finally {
       setIsLoading(false)

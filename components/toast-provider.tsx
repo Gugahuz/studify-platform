@@ -1,19 +1,86 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useCallback } from "react"
 import { CustomToast } from "@/components/ui/custom-toast"
 
-type ToastType = "success" | "error" | "warning" | "info"
+interface Toast {
+  id: string
+  title: string
+  description?: string
+  type: "success" | "error" | "warning" | "info"
+}
 
 interface ToastContextType {
-  success: (message: string, title?: string) => void
-  error: (message: string, title?: string) => void
-  warning: (message: string, title?: string) => void
-  info: (message: string, title?: string) => void
+  success: (title: string, description?: string) => void
+  error: (title: string, description?: string) => void
+  warning: (title: string, description?: string) => void
+  info: (title: string, description?: string) => void
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
+
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [toasts, setToasts] = useState<Toast[]>([])
+
+  const addToast = useCallback((toast: Omit<Toast, "id">) => {
+    const id = Math.random().toString(36).substr(2, 9)
+    setToasts((prev) => [...prev, { ...toast, id }])
+
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 5000)
+  }, [])
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+
+  const success = useCallback(
+    (title: string, description?: string) => {
+      addToast({ title, description, type: "success" })
+    },
+    [addToast],
+  )
+
+  const error = useCallback(
+    (title: string, description?: string) => {
+      addToast({ title, description, type: "error" })
+    },
+    [addToast],
+  )
+
+  const warning = useCallback(
+    (title: string, description?: string) => {
+      addToast({ title, description, type: "warning" })
+    },
+    [addToast],
+  )
+
+  const info = useCallback(
+    (title: string, description?: string) => {
+      addToast({ title, description, type: "info" })
+    },
+    [addToast],
+  )
+
+  return (
+    <ToastContext.Provider value={{ success, error, warning, info }}>
+      {children}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <CustomToast
+            key={toast.id}
+            title={toast.title}
+            description={toast.description}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+    </ToastContext.Provider>
+  )
+}
 
 export function useToastContext() {
   const context = useContext(ToastContext)
@@ -21,53 +88,4 @@ export function useToastContext() {
     throw new Error("useToastContext must be used within a ToastProvider")
   }
   return context
-}
-
-interface Toast {
-  id: number
-  type: ToastType
-  title?: string
-  message: string
-}
-
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([])
-
-  const addToast = (type: ToastType, message: string, title?: string) => {
-    const id = Date.now()
-    setToasts((prevToasts) => [...prevToasts, { id, type, message, title }])
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-      setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
-    }, 5000)
-  }
-
-  const removeToast = (id: number) => {
-    setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
-  }
-
-  const contextValue = {
-    success: (message: string, title?: string) => addToast("success", message, title),
-    error: (message: string, title?: string) => addToast("error", message, title),
-    warning: (message: string, title?: string) => addToast("warning", message, title),
-    info: (message: string, title?: string) => addToast("info", message, title),
-  }
-
-  return (
-    <ToastContext.Provider value={contextValue}>
-      {children}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
-        {toasts.map((toast) => (
-          <CustomToast
-            key={toast.id}
-            type={toast.type}
-            title={toast.title}
-            message={toast.message}
-            onClose={() => removeToast(toast.id)}
-          />
-        ))}
-      </div>
-    </ToastContext.Provider>
-  )
 }

@@ -1,36 +1,48 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 
+export const dynamic = "force-dynamic"
+
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const userId = searchParams.get("userId")
+    const userId = req.nextUrl.searchParams.get("userId")
 
     if (!userId) {
-      return NextResponse.json({ error: "User ID required" }, { status: 400 })
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
-    // Get user's subscription status
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_premium, premium_expires_at")
-      .eq("id", userId)
-      .single()
-
-    const { data: subscription } = await supabase
+    const { data: subscription, error } = await supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
-      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
       .single()
 
+    if (error && error.code !== "PGRST116") {
+      console.error("Error fetching subscription:", error)
+      return NextResponse.json({ error: "Failed to fetch subscription" }, { status: 500 })
+    }
+
+    // Se não encontrou assinatura
+    if (!subscription) {
+      return NextResponse.json({ status: "inactive", subscription: null })
+    }
+
+    // Verificar se a assinatura está ativa
+    const now = new Date()
+    const endDate = new Date(subscription.current_period_end)
+    const isActive = endDate > now && subscription.status !== "canceled"
+
     return NextResponse.json({
-      isPremium: profile?.is_premium || false,
-      premiumExpiresAt: profile?.premium_expires_at,
-      subscription: subscription,
+      status: isActive ? "active" : "inactive",
+      subscription: {
+        ...subscription,
+        is_active: isActive,
+      },
     })
   } catch (error) {
-    console.error("❌ Error getting subscription status:", error)
-    return NextResponse.json({ error: "Failed to get subscription status" }, { status: 500 })
+    console.error("Error getting subscription status:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
