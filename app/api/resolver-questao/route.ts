@@ -34,29 +34,33 @@ export async function POST(req: Request) {
       apiKey: process.env.OPENAI_API_KEY,
     })
 
-    const prompt = `Você é um professor de matemática especializado em resolver questões passo a passo. 
+    const prompt = `Você é um professor de matemática especializado. Analise esta imagem e resolva TODAS as questões matemáticas que encontrar.
 
-INSTRUÇÕES:
-- Analise cuidadosamente a imagem fornecida
-- Identifique todas as questões, problemas matemáticos ou equações presentes
-- Para cada questão encontrada, forneça uma solução completa e detalhada
-- Explique cada passo do processo de resolução de forma didática
-- Use linguagem clara e acessível para estudantes
-- Se houver múltiplas questões, resolva todas elas
-- Se não conseguir identificar questões matemáticas, informe o que você vê na imagem
+IMPORTANTE: 
+- Identifique e transcreva EXATAMENTE o que está escrito na imagem
+- Resolva cada questão passo a passo de forma detalhada
+- Use formatação clara com títulos e numeração
+- Se não conseguir ler algo, mencione especificamente
 
-FORMATO DA RESPOSTA:
-- Primeiro, descreva brevemente o que você identificou na imagem
-- Em seguida, para cada questão, forneça:
-  1. O enunciado da questão (se visível)
-  2. Resolução passo a passo
-  3. Resposta final destacada
+FORMATO OBRIGATÓRIO:
+## 📝 QUESTÃO IDENTIFICADA:
+[Transcreva exatamente o que está escrito]
 
-Seja detalhado e didático em suas explicações.`
+## 🔍 ANÁLISE:
+[Explique o tipo de problema e estratégia]
+
+## ✏️ RESOLUÇÃO PASSO A PASSO:
+[Desenvolva a solução completa]
+
+## ✅ RESPOSTA FINAL:
+[Destaque a resposta]
+
+Se houver múltiplas questões, repita este formato para cada uma.
+Se não conseguir identificar questões matemáticas, descreva detalhadamente o que vê na imagem.`
 
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4-vision-preview",
+        model: "gpt-4o",
         messages: [
           {
             role: "user",
@@ -72,7 +76,7 @@ Seja detalhado e didático em suas explicações.`
             ],
           },
         ],
-        max_tokens: 2000,
+        max_tokens: 3000,
       })
 
       const resolucao = completion.choices[0].message.content
@@ -85,36 +89,14 @@ Seja detalhado e didático em suas explicações.`
     } catch (apiError) {
       console.error("OpenAI API error:", apiError)
 
-      // Fallback response
-      const resolucaoFallback = `Identifiquei uma questão matemática na imagem fornecida.
-
-**Análise da Imagem:**
-Consegui visualizar o que parece ser uma equação ou problema matemático. Para fornecer a melhor resolução possível, vou demonstrar um exemplo de como abordar questões matemáticas:
-
-**Exemplo de Resolução Passo a Passo:**
-
-1. **Identificação do Problema:** Primeiro, identificamos o tipo de questão (álgebra, geometria, cálculo, etc.)
-
-2. **Organização dos Dados:** Listamos todas as informações fornecidas no problema
-
-3. **Estratégia de Resolução:** Escolhemos o método mais adequado para resolver
-
-4. **Desenvolvimento:** Executamos os cálculos passo a passo
-
-5. **Verificação:** Conferimos se a resposta faz sentido no contexto
-
-6. **Resposta Final:** Apresentamos a solução de forma clara
-
-**Dica:** Para obter uma resolução mais precisa, certifique-se de que a imagem esteja bem iluminada e que o texto/números estejam legíveis.
-
-Se você puder reenviar a imagem com melhor qualidade ou escrever a questão diretamente no chat, posso fornecer uma resolução mais específica e detalhada.`
-
-      return Response.json({
-        success: true,
-        resolucao: resolucaoFallback,
-        nomeArquivo: file.name,
-        fallback: true,
-      })
+      return Response.json(
+        {
+          error:
+            "Não foi possível processar a imagem no momento. Verifique se a imagem contém questões matemáticas legíveis e tente novamente.",
+          details: apiError instanceof Error ? apiError.message : "Erro na API de visão",
+        },
+        { status: 500 },
+      )
     }
   } catch (error) {
     console.error("Error processing image:", error)
