@@ -1,9 +1,9 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { MessageSquare, Camera, CreditCard, FileText, RefreshCw, Quote, PenTool, FileQuestion } from "lucide-react"
+import Image from "next/image"
 
 export default function AssistentePage() {
   const router = useRouter()
@@ -102,20 +102,17 @@ export default function AssistentePage() {
               <CardContent className="p-6 text-center space-y-4">
                 <div className="flex justify-center">
                   <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                    <IconComponent className={`h-8 w-8 ${feature.iconColor}`} />
+                    {feature.id === "falar-com-studo" ? (
+                      <Image src="/images/studo-avatar.png" alt="Studo" width={32} height={32} className="w-8 h-8" />
+                    ) : (
+                      <IconComponent className={`h-8 w-8 ${feature.iconColor}`} />
+                    )}
                   </div>
                 </div>
                 <div className="space-y-2">
                   <h3 className="font-semibold text-gray-900 text-lg leading-tight">{feature.title}</h3>
                   <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full bg-white/80 hover:bg-white border-gray-200 text-gray-700 hover:text-gray-900"
-                >
-                  Acessar
-                </Button>
               </CardContent>
             </Card>
           )

@@ -44,14 +44,6 @@ export function ChatInterface() {
       <div className="flex flex-col h-full bg-gray-50">
         {/* Área de apresentação */}
         <div className="flex-1 flex flex-col">
-          {/* Seção Pergunte ao Studo */}
-          <div className="p-6 bg-white border-b">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Pergunte ao Studo</h2>
-            <p className="text-gray-600 text-sm">
-              Faça perguntas ao Studo sobre qualquer matéria e receba respostas didáticas
-            </p>
-          </div>
-
           {/* Área central com mascote e apresentação */}
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             {/* Avatar do Studo */}
