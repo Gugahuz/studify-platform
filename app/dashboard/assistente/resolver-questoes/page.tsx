@@ -241,140 +241,163 @@ export default function ResolverQuestoesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {/* Preview da imagem */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  Imagem Carregada
-                </CardTitle>
-                <Button variant="outline" size="sm" onClick={clearSelection}>
-                  <X className="h-4 w-4 mr-2" />
-                  Remover
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center space-y-4">
-                <div className="relative max-w-lg w-full">
-                  {previewUrl && (
-                    <Image
-                      src={previewUrl || "/placeholder.svg"}
-                      alt="Preview da questão"
-                      width={500}
-                      height={400}
-                      className="w-full h-auto rounded-lg border shadow-lg"
-                    />
-                  )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Coluna da esquerda - Imagem e Informações */}
+          <div className="md:col-span-1 space-y-6">
+            <Card className="border-blue-100 shadow-sm">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Imagem Carregada
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={clearSelection} className="h-8 w-8 p-0">
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-
-                <div className="text-center space-y-2">
-                  <p className="text-sm font-medium text-gray-700">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative w-full">
+                    {previewUrl && (
+                      <Image
+                        src={previewUrl || "/placeholder.svg"}
+                        alt="Preview da questão"
+                        width={400}
+                        height={300}
+                        className="w-full h-auto rounded-lg border"
+                      />
+                    )}
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {!resultado && (
-                  <div className="flex flex-col items-center space-y-3">
-                    {isProcessing && processingStep && (
+            {/* Informações */}
+            <Card className="border-blue-100 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Informações</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-700">Nome do arquivo</p>
+                  <p className="text-sm text-gray-600">{selectedFile.name}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-700">Tamanho</p>
+                  <p className="text-sm text-gray-600">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-700">Status</p>
+                  <div className="flex items-center gap-2">
+                    {isProcessing ? (
                       <div className="flex items-center gap-2 text-blue-600">
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-3 w-3 animate-spin" />
                         <span className="text-sm">{processingStep}</span>
                       </div>
+                    ) : resultado ? (
+                      <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle className="h-3 w-3" />
+                        <span className="text-sm">Processado com sucesso</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-amber-600">
+                        <AlertCircle className="h-3 w-3" />
+                        <span className="text-sm">Aguardando processamento</span>
+                      </div>
                     )}
+                  </div>
+                </div>
 
-                    <Button
-                      onClick={processImage}
-                      disabled={isProcessing}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
-                      size="lg"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                          Analisando...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-5 w-5 mr-2" />
-                          Resolver Questão
-                        </>
-                      )}
-                    </Button>
+                {!resultado && !isProcessing && (
+                  <Button onClick={processImage} className="w-full bg-blue-600 hover:bg-blue-700 mt-4" size="sm">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Resolver Questão
+                  </Button>
+                )}
+
+                {isProcessing && (
+                  <div className="w-full bg-blue-50 text-blue-700 rounded-md p-2 text-xs text-center">
+                    Processando sua imagem, aguarde um momento...
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Resultado da resolução */}
-          {resultado && (
-            <Card className={resultado.fallback ? "border-amber-200 bg-amber-50" : "border-green-200 bg-green-50"}>
-              <CardHeader>
+          {/* Coluna da direita - Resolução */}
+          <div className="md:col-span-2">
+            <Card
+              className={`h-full border ${resultado ? (resultado.fallback ? "border-amber-200" : "border-green-200") : "border-gray-200"} shadow-sm`}
+            >
+              <CardHeader className="pb-2">
                 <CardTitle
-                  className={`flex items-center gap-2 ${resultado.fallback ? "text-amber-700" : "text-green-700"}`}
+                  className={`text-lg ${resultado ? (resultado.fallback ? "text-amber-700" : "text-green-700") : "text-gray-700"}`}
                 >
-                  {resultado.fallback ? (
-                    <>
-                      <RefreshCw className="h-5 w-5" />
-                      Resolução Alternativa
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-5 w-5" />
-                      Questão Resolvida
-                    </>
-                  )}
+                  {resultado ? "Resolução" : "Aguardando processamento..."}
                 </CardTitle>
-                {resultado.fallback && (
-                  <CardDescription className="text-amber-600">
-                    Processamento com método alternativo - tente uma nova foto para melhor precisão
+                {resultado && resultado.fallback && (
+                  <CardDescription className="text-amber-600 text-xs">
+                    Processamento com método alternativo
                   </CardDescription>
                 )}
               </CardHeader>
               <CardContent>
-                <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-wrap text-gray-800 leading-relaxed font-medium">
-                    {resultado.resolucao}
+                {resultado ? (
+                  <div className="prose prose-sm max-w-none">
+                    <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">{resultado.resolucao}</div>
                   </div>
-                </div>
+                ) : isProcessing ? (
+                  <div className="flex flex-col items-center justify-center h-64 space-y-4">
+                    <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+                    <p className="text-gray-500 text-sm">{processingStep}</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 space-y-4 text-gray-400">
+                    <Camera className="h-12 w-12 opacity-20" />
+                    <p className="text-center">
+                      Clique em "Resolver Questão" para processar a imagem e obter a resolução detalhada.
+                    </p>
+                  </div>
+                )}
 
-                <div className="mt-6 pt-4 border-t flex flex-wrap gap-3">
-                  <Button variant="outline" onClick={clearSelection} className="flex items-center gap-2">
-                    <Camera className="h-4 w-4" />
-                    Nova Questão
-                  </Button>
-
-                  <Button
-                    onClick={processImage}
-                    disabled={isProcessing}
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Reprocessando...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4" />
-                        Tentar Novamente
-                      </>
-                    )}
-                  </Button>
-
-                  <Link href="/dashboard/assistente/chat">
-                    <Button className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
-                      Chat com Studo
+                {resultado && (
+                  <div className="mt-6 pt-4 border-t flex flex-wrap gap-3">
+                    <Button variant="outline" onClick={clearSelection} className="flex items-center gap-2">
+                      <Camera className="h-4 w-4" />
+                      Nova Questão
                     </Button>
-                  </Link>
-                </div>
+
+                    <Button
+                      onClick={processImage}
+                      disabled={isProcessing}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Reprocessando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4" />
+                          Tentar Novamente
+                        </>
+                      )}
+                    </Button>
+
+                    <Link href="/dashboard/assistente/chat">
+                      <Button className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Chat com Studo
+                      </Button>
+                    </Link>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+          </div>
         </div>
       )}
     </div>
