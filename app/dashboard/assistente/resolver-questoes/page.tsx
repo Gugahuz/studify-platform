@@ -17,6 +17,40 @@ interface ResolucaoResult {
   error?: string
 }
 
+// Função para processar o texto e destacar equações
+const processTextWithEquations = (text: string) => {
+  // Regex para identificar equações matemáticas (números, variáveis, operadores)
+  const equationRegex = /([0-9]*[a-zA-Z]*\s*[+\-*/=]\s*[0-9]*[a-zA-Z]*(?:\s*[+\-*/=]\s*[0-9]*[a-zA-Z]*)*)/g
+
+  const parts = text.split("\n").map((line, lineIndex) => {
+    const lineParts = line.split(equationRegex).map((part, partIndex) => {
+      if (equationRegex.test(part)) {
+        return (
+          <span
+            key={`${lineIndex}-${partIndex}`}
+            className="inline-block bg-gray-100 px-3 py-2 mx-1 rounded-md font-mono text-lg font-bold text-gray-800 border border-gray-200"
+            style={{
+              fontFamily: 'Monaco, "Lucida Console", "Courier New", monospace',
+              letterSpacing: "0.5px",
+            }}
+          >
+            {part.trim()}
+          </span>
+        )
+      }
+      return part
+    })
+
+    return (
+      <div key={lineIndex} className="mb-2">
+        {lineParts}
+      </div>
+    )
+  })
+
+  return parts
+}
+
 export default function ResolverQuestoesPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -345,7 +379,7 @@ export default function ResolverQuestoesPage() {
               <CardContent>
                 {resultado ? (
                   <div className="prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">{resultado.resolucao}</div>
+                    <div className="text-gray-800 leading-relaxed">{processTextWithEquations(resultado.resolucao)}</div>
                   </div>
                 ) : isProcessing ? (
                   <div className="flex flex-col items-center justify-center h-64 space-y-4">
