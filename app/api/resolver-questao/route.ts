@@ -131,38 +131,49 @@ async function processWithModel(
 ): Promise<string | null> {
   const prompt = `Você é um professor especializado em resolver questões de forma CLARA e SIMPLES. Analise esta imagem e resolva seguindo EXATAMENTE este formato:
 
-FORMATO OBRIGATÓRIO (use emojis e formatação):
+INSTRUÇÕES CRÍTICAS DE FORMATAÇÃO:
+- NÃO use símbolos: \\ [ ] ( ) ** *** \{ \} \$ 
+- NÃO use formatação LaTeX ou markdown complexo
+- Use texto SIMPLES e LIMPO
+- Use apenas emojis básicos para organização
+- Escreva equações de forma simples: 8x - 21 = 3
+- Evite parênteses desnecessários
 
-🎯 **Objetivo:** [Descreva claramente o que precisa ser encontrado]
+FORMATO OBRIGATÓRIO:
 
-🔍 **Equação/Questão identificada:**
-[Transcreva exatamente o que está na imagem]
+🎯 Objetivo: [Descreva claramente o que precisa ser encontrado]
 
-📝 **Resolução passo a passo:**
+🔍 Equação identificada:
+[Transcreva de forma simples, sem símbolos especiais]
 
-🔹 **Passo 1:** [Nome do passo]
+📝 Resolução passo a passo:
+
+🔹 Passo 1: [Nome do passo]
 [Explicação simples do que fazer]
-[Mostre a operação matemática]
+[Mostre a operação de forma limpa]
 
-🔹 **Passo 2:** [Nome do passo]  
+🔹 Passo 2: [Nome do passo]  
 [Explicação simples do que fazer]
-[Mostre a operação matemática]
+[Mostre a operação de forma limpa]
 
 [Continue com quantos passos forem necessários]
 
-✅ **Resultado final:**
-[Destaque a resposta final de forma clara]
+✅ Resultado final:
+[Destaque a resposta final de forma clara e simples]
+
+EXEMPLO DE FORMATAÇÃO CORRETA:
+- CERTO: 8x = 24
+- ERRADO: \\[ 8x = 24 \\]
+- CERTO: x = 3
+- ERRADO: \$$ x = 3 \$$
 
 INSTRUÇÕES IMPORTANTES:
 - Use linguagem SIMPLES e CLARA
 - Explique cada passo de forma didática
-- Para matemática: mostre todas as operações
-- Para outras disciplinas: dê respostas diretas e bem explicadas
-- Use emojis para organizar visualmente
+- Mostre operações matemáticas de forma limpa
+- Use emojis apenas para organizar seções
 - Seja conciso mas completo
-- Foque no essencial
-
-Se não for matemática, adapte o formato mantendo a clareza e organização.`
+- NUNCA use símbolos de formatação complexa`
 
   try {
     const completion = await openai.chat.completions.create({
@@ -192,7 +203,22 @@ Se não for matemática, adapte o formato mantendo a clareza e organização.`
       throw new Error("Resposta muito curta ou vazia")
     }
 
-    return response
+    // Limpar qualquer símbolo de formatação que possa ter escapado
+    const cleanResponse = response
+      .replace(/\\\[/g, "")
+      .replace(/\\\]/g, "")
+      .replace(/\\\(/g, "")
+      .replace(/\\\)/g, "")
+      .replace(/\\\{/g, "")
+      .replace(/\\\}/g, "")
+      .replace(/\\\$/g, "")
+      .replace(/\*\*\*/g, "")
+      .replace(/\*\*/g, "")
+      .replace(/\\frac/g, "")
+      .replace(/\\text/g, "")
+      .replace(/\\[a-zA-Z]+/g, "")
+
+    return cleanResponse
   } catch (error) {
     console.error(`[RESOLVER-QUESTAO] Erro no modelo ${model}:`, error)
     return null
