@@ -129,7 +129,7 @@ async function processWithModel(
   mimeType: string,
   detail: "low" | "high",
 ): Promise<string | null> {
-  const prompt = `Você é um professor especializado em resolver questões de forma CLARA e SIMPLES. Analise esta imagem e resolva seguindo EXATAMENTE este formato:
+  const prompt = `Você é um professor especializado em resolver questões de forma CLARA e DETALHADA. Analise esta imagem e identifique o tipo de conteúdo.
 
 INSTRUÇÕES CRÍTICAS DE FORMATAÇÃO:
 - NÃO use símbolos: \\ [ ] ( ) ** *** \{ \} \$ 
@@ -137,9 +137,10 @@ INSTRUÇÕES CRÍTICAS DE FORMATAÇÃO:
 - Use texto SIMPLES e LIMPO
 - Use apenas emojis básicos para organização
 - Escreva equações de forma simples: 8x - 21 = 3
-- Evite parênteses desnecessários
 
-FORMATO OBRIGATÓRIO:
+PRIMEIRO: Identifique se é MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos) ou OUTRAS DISCIPLINAS (história, geografia, biologia, português, etc.)
+
+==== PARA MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos): ====
 
 🎯 Objetivo: [Descreva claramente o que precisa ser encontrado]
 
@@ -156,23 +157,51 @@ FORMATO OBRIGATÓRIO:
 [Explicação simples do que fazer]
 [Mostre a operação de forma limpa]
 
-[Continue com quantos passos forem necessários]
-
 ✅ Resultado final:
 [Destaque a resposta final de forma clara e simples]
 
-EXEMPLO DE FORMATAÇÃO CORRETA:
-- CERTO: 8x = 24
-- ERRADO: \\[ 8x = 24 \\]
-- CERTO: x = 3
-- ERRADO: \$$ x = 3 \$$
+==== PARA OUTRAS DISCIPLINAS (história, geografia, biologia, etc.): ====
+
+🎯 Objetivo: [Descreva claramente o que está sendo perguntado]
+
+🔍 Informação identificada:
+[Transcreva exatamente a pergunta ou texto da imagem]
+
+📝 Resolução passo a passo:
+
+🔹 Passo 1: [Identificar o tema principal]
+[Explicação detalhada sobre o assunto]
+
+✅ Resultado final:
+
+[RESPOSTA MUITO DETALHADA E COMPLETA com as seguintes seções:]
+
+👤 Quem foi/O que é:
+• [Informações básicas e definição]
+• [Dados importantes como datas, locais, etc.]
+
+📚 Principais características/feitos:
+
+🏛️ [Categoria relevante - ex: Período Histórico]:
+• [Detalhes específicos]
+• [Fatos importantes]
+• [Contexto histórico/científico]
+
+🌟 [Outra categoria relevante]:
+• [Mais detalhes]
+• [Informações complementares]
+
+🎯 Legado/Importância:
+• [Por que é importante]
+• [Impacto na história/ciência/sociedade]
+• [Relevância atual]
 
 INSTRUÇÕES IMPORTANTES:
+- Para matemática: seja conciso e direto
+- Para outras disciplinas: seja MUITO detalhado e educativo
 - Use linguagem SIMPLES e CLARA
-- Explique cada passo de forma didática
-- Mostre operações matemáticas de forma limpa
-- Use emojis apenas para organizar seções
-- Seja conciso mas completo
+- Organize informações em seções lógicas
+- Inclua contexto histórico/científico quando relevante
 - NUNCA use símbolos de formatação complexa`
 
   try {
@@ -193,7 +222,7 @@ INSTRUÇÕES IMPORTANTES:
           ],
         },
       ],
-      max_tokens: 3000,
+      max_tokens: 4000,
       temperature: 0,
     })
 
@@ -226,30 +255,30 @@ INSTRUÇÕES IMPORTANTES:
 }
 
 function generateIntelligentFallback(): string {
-  return `🎯 **Objetivo:** Ajudar você a resolver sua questão
+  return `🎯 Objetivo: Ajudar você a resolver sua questão
 
-🔍 **Situação:**
+🔍 Situação:
 Recebi sua imagem, mas encontrei dificuldades técnicas para processá-la completamente.
 
-📝 **Como posso ajudar:**
+📝 Como posso ajudar:
 
-🔹 **Opção 1: Tente novamente**
+🔹 Opção 1: Tente novamente
 - Tire uma nova foto com boa iluminação
 - Certifique-se de que o texto está legível
 - Evite sombras ou reflexos
 
-🔹 **Opção 2: Digite sua questão**
+🔹 Opção 2: Digite sua questão
 - Escreva diretamente no chat: "Resolva: 2x + 5 = 15"
 - Ou pergunte: "Explique a fotossíntese"
 - Ou: "Quem foi Dom Pedro I?"
 
-🔹 **Opção 3: Use o chat**
+🔹 Opção 3: Use o chat
 - Converse comigo para tirar dúvidas específicas
 - Posso explicar conceitos passo a passo
 - Funciono com todas as disciplinas
 
-✅ **Disciplinas que domino:**
+✅ Disciplinas que domino:
 📚 Matemática • 🧪 Ciências • 📖 História • 🌍 Geografia • 📝 Português • 🎨 Artes
 
-**Estou aqui para ajudar! Tente uma dessas alternativas e vamos resolver juntos! 🚀**`
+Estou aqui para ajudar! Tente uma dessas alternativas e vamos resolver juntos! 🚀`
 }
