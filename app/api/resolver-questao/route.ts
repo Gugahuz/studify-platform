@@ -164,15 +164,6 @@ PRIMEIRO: Identifique se é MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos) ou OUTR
 
 ==== PARA OUTRAS DISCIPLINAS (história, geografia, biologia, etc.): ====
 
-🎯 Objetivo: [Descreva claramente o que está sendo perguntado]
-
-📝 Resolução passo a passo:
-
-🔹 Passo 1: Identificar o tema principal
-[Explicação detalhada sobre o assunto]
-
-✅ Resultado final:
-
 👤 Quem foi ou O que é:
 • [Informações básicas e definição completa]
 • [Dados importantes como datas, locais, etc.]
@@ -196,6 +187,8 @@ PRIMEIRO: Identifique se é MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos) ou OUTR
 • [Relevância atual]
 
 REGRAS OBRIGATÓRIAS:
+- Para matemática: use o formato completo com objetivo, equação e passos
+- Para outras disciplinas: vá DIRETO para as seções de conteúdo, sem objetivo ou passos
 - Escreva TODAS as palavras completas
 - NUNCA use barras no meio de palavras
 - NUNCA quebre palavras
