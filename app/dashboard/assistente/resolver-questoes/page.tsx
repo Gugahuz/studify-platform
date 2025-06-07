@@ -362,16 +362,16 @@ export default function ResolverQuestoesPage() {
           {/* Coluna da direita - Resolução */}
           <div className="md:col-span-2">
             <Card
-              className={`h-full border ${resultado ? (resultado.fallback ? "border-amber-200" : "border-green-200") : "border-gray-200"} shadow-sm`}
+              className={`h-full border ${resultado ? (resultado.fallback ? "border-green-200" : "border-green-200") : "border-gray-200"} shadow-sm`}
             >
               <CardHeader className="pb-2">
                 <CardTitle
-                  className={`text-lg ${resultado ? (resultado.fallback ? "text-amber-700" : "text-green-700") : "text-gray-700"}`}
+                  className={`text-lg ${resultado ? (resultado.fallback ? "text-green-700" : "text-green-700") : "text-gray-700"}`}
                 >
                   {resultado ? "Resolução" : "Aguardando processamento..."}
                 </CardTitle>
                 {resultado && resultado.fallback && (
-                  <CardDescription className="text-amber-600 text-xs">
+                  <CardDescription className="text-green-600 text-xs">
                     Processamento com método alternativo
                   </CardDescription>
                 )}
