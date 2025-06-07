@@ -129,29 +129,40 @@ async function processWithModel(
   mimeType: string,
   detail: "low" | "high",
 ): Promise<string | null> {
-  const prompt = `Você é um assistente educacional avançado, similar ao Photomath e Google Lens. Analise esta imagem e identifique EXATAMENTE o que está escrito.
+  const prompt = `Você é um professor especializado em resolver questões de forma CLARA e SIMPLES. Analise esta imagem e resolva seguindo EXATAMENTE este formato:
 
-INSTRUÇÕES CRÍTICAS:
-1. Leia e transcreva PALAVRA POR PALAVRA todo o texto visível na imagem
-2. Identifique se é: matemática, física, química, história, geografia, português, biologia, etc.
-3. Resolva ou responda de forma COMPLETA e DETALHADA
-4. Use formatação clara e organizada
-5. Se for equação matemática, mostre TODOS os passos
-6. Se for pergunta de conhecimento, dê resposta COMPLETA com contexto
+FORMATO OBRIGATÓRIO (use emojis e formatação):
 
-FORMATO OBRIGATÓRIO:
-🔍 **TEXTO IDENTIFICADO:**
-[Transcreva EXATAMENTE tudo que conseguir ler]
+🎯 **Objetivo:** [Descreva claramente o que precisa ser encontrado]
 
-📚 **DISCIPLINA:** [Nome da matéria]
+🔍 **Equação/Questão identificada:**
+[Transcreva exatamente o que está na imagem]
 
-✅ **RESPOSTA COMPLETA:**
-[Resolução passo a passo OU resposta detalhada]
+📝 **Resolução passo a passo:**
 
-💡 **EXPLICAÇÃO ADICIONAL:**
-[Contexto, dicas ou informações extras relevantes]
+🔹 **Passo 1:** [Nome do passo]
+[Explicação simples do que fazer]
+[Mostre a operação matemática]
 
-IMPORTANTE: Seja PRECISO na transcrição e COMPLETO na resposta. Se não conseguir ler algo, mencione especificamente o que não está claro.`
+🔹 **Passo 2:** [Nome do passo]  
+[Explicação simples do que fazer]
+[Mostre a operação matemática]
+
+[Continue com quantos passos forem necessários]
+
+✅ **Resultado final:**
+[Destaque a resposta final de forma clara]
+
+INSTRUÇÕES IMPORTANTES:
+- Use linguagem SIMPLES e CLARA
+- Explique cada passo de forma didática
+- Para matemática: mostre todas as operações
+- Para outras disciplinas: dê respostas diretas e bem explicadas
+- Use emojis para organizar visualmente
+- Seja conciso mas completo
+- Foque no essencial
+
+Se não for matemática, adapte o formato mantendo a clareza e organização.`
 
   try {
     const completion = await openai.chat.completions.create({
@@ -171,7 +182,7 @@ IMPORTANTE: Seja PRECISO na transcrição e COMPLETO na resposta. Se não conseg
           ],
         },
       ],
-      max_tokens: 4000,
+      max_tokens: 3000,
       temperature: 0,
     })
 
@@ -189,47 +200,30 @@ IMPORTANTE: Seja PRECISO na transcrição e COMPLETO na resposta. Se não conseg
 }
 
 function generateIntelligentFallback(): string {
-  return `🔍 **ANÁLISE DA IMAGEM**
+  return `🎯 **Objetivo:** Ajudar você a resolver sua questão
 
-Recebi sua imagem, mas encontrei dificuldades técnicas para processá-la completamente. Vou te ajudar da melhor forma possível!
+🔍 **Situação:**
+Recebi sua imagem, mas encontrei dificuldades técnicas para processá-la completamente.
 
-📚 **COMO POSSO AJUDAR:**
+📝 **Como posso ajudar:**
 
-**MATEMÁTICA:**
-• Equações e sistemas lineares
-• Geometria e trigonometria
-• Cálculo (derivadas, integrais)
-• Estatística e probabilidade
-• Álgebra e funções
+🔹 **Opção 1: Tente novamente**
+- Tire uma nova foto com boa iluminação
+- Certifique-se de que o texto está legível
+- Evite sombras ou reflexos
 
-**CIÊNCIAS:**
-• Física (mecânica, eletricidade, óptica)
-• Química (reações, estequiometria, orgânica)
-• Biologia (células, genética, ecologia)
+🔹 **Opção 2: Digite sua questão**
+- Escreva diretamente no chat: "Resolva: 2x + 5 = 15"
+- Ou pergunte: "Explique a fotossíntese"
+- Ou: "Quem foi Dom Pedro I?"
 
-**HUMANAS:**
-• História (eventos, personagens, períodos)
-• Geografia (países, climas, relevo)
-• Português (gramática, literatura, interpretação)
-• Filosofia e sociologia
+🔹 **Opção 3: Use o chat**
+- Converse comigo para tirar dúvidas específicas
+- Posso explicar conceitos passo a passo
+- Funciono com todas as disciplinas
 
-✅ **PRÓXIMOS PASSOS:**
+✅ **Disciplinas que domino:**
+📚 Matemática • 🧪 Ciências • 📖 História • 🌍 Geografia • 📝 Português • 🎨 Artes
 
-1. **TENTE NOVAMENTE:** Envie uma nova foto com:
-   - Boa iluminação (evite sombras)
-   - Texto bem legível
-   - Enquadramento completo da questão
-   - Imagem nítida (sem tremor)
-
-2. **DIGITE SUA PERGUNTA:** Escreva diretamente no chat:
-   - "Resolva: 2x + 5 = 15"
-   - "Quem foi Dom Pedro I?"
-   - "Explique a fotossíntese"
-
-3. **USE O CHAT:** Converse comigo para tirar dúvidas específicas
-
-💡 **DICA IMPORTANTE:**
-Funciono melhor com imagens claras e bem iluminadas. Se a questão for complexa, posso resolver passo a passo quando você digitar no chat!
-
-**Estou aqui para ajudar! Tente uma dessas alternativas e vamos resolver sua questão juntos! 🚀**`
+**Estou aqui para ajudar! Tente uma dessas alternativas e vamos resolver juntos! 🚀**`
 }
