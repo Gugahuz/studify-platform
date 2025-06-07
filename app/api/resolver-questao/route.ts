@@ -129,7 +129,7 @@ async function processWithModel(
   mimeType: string,
   detail: "low" | "high",
 ): Promise<string | null> {
-  const prompt = `Você é um professor especializado em resolver questões de forma CLARA e DETALHADA. Analise esta imagem e identifique o tipo de conteúdo.
+  const prompt = `Você é um professor especializado em resolver questões de forma CLARA e DETALHADA. Analise esta imagem e responda adequadamente.
 
 INSTRUÇÕES CRÍTICAS DE FORMATAÇÃO:
 - Use APENAS texto simples e limpo
@@ -138,26 +138,28 @@ INSTRUÇÕES CRÍTICAS DE FORMATAÇÃO:
 - NÃO quebre palavras ou use barras no meio de palavras
 - Escreva todas as palavras completas e normais
 - Use apenas emojis básicos para organização
-- Para equações: escreva de forma simples como "8x - 21 = 3"
+- Para expoentes: use os símbolos corretos ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹
+- NUNCA use ^ para expoentes, sempre use os símbolos de sobrescrito
+- NÃO mencione classificações como "MATEMÁTICA" ou "OUTRAS DISCIPLINAS"
 
-PRIMEIRO: Identifique se é MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos) ou OUTRAS DISCIPLINAS
+IDENTIFIQUE o tipo de conteúdo e responda no formato adequado:
 
 ==== PARA MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos): ====
 
 🎯 Objetivo: [Descreva claramente o que precisa ser encontrado]
 
 🔍 Equação identificada:
-[Transcreva de forma simples, sem símbolos especiais]
+[Transcreva usando símbolos corretos: x² + 3x - 4 = 0, não x^2 + 3x - 4 = 0]
 
 📝 Resolução passo a passo:
 
 🔹 Passo 1: [Nome do passo]
 [Explicação simples do que fazer]
-[Mostre a operação de forma limpa]
+[Mostre a operação usando símbolos corretos para expoentes]
 
 🔹 Passo 2: [Nome do passo]  
 [Explicação simples do que fazer]
-[Mostre a operação de forma limpa]
+[Continue usando símbolos corretos: x², x³, etc.]
 
 ✅ Resultado final:
 [Destaque a resposta final de forma clara e simples]
@@ -188,12 +190,13 @@ PRIMEIRO: Identifique se é MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos) ou OUTR
 
 REGRAS OBRIGATÓRIAS:
 - Para matemática: use o formato completo com objetivo, equação e passos
-- Para outras disciplinas: vá DIRETO para as seções de conteúdo, sem objetivo ou passos
+- Para outras disciplinas: vá DIRETO para as seções de conteúdo
+- SEMPRE use símbolos corretos para expoentes: ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹
+- NUNCA use ^ para representar expoentes
+- NUNCA mencione a classificação do tipo de disciplina
 - Escreva TODAS as palavras completas
 - NUNCA use barras no meio de palavras
-- NUNCA quebre palavras
-- Use texto simples e natural
-- Seja detalhado mas com linguagem clara`
+- Use texto simples e natural`
 
   try {
     const completion = await openai.chat.completions.create({
@@ -223,8 +226,8 @@ REGRAS OBRIGATÓRIAS:
       throw new Error("Resposta muito curta ou vazia")
     }
 
-    // Limpar qualquer símbolo de formatação que possa ter escapado
-    const cleanResponse = response
+    // Limpar qualquer símbolo de formatação que possa ter escapado e corrigir expoentes
+    let cleanResponse = response
       .replace(/\\\[/g, "")
       .replace(/\\\]/g, "")
       .replace(/\\\(/g, "")
@@ -237,6 +240,19 @@ REGRAS OBRIGATÓRIAS:
       .replace(/\\frac/g, "")
       .replace(/\\text/g, "")
       .replace(/\\[a-zA-Z]+/g, "")
+
+    // Converter expoentes para símbolos corretos
+    cleanResponse = cleanResponse
+      .replace(/\^2/g, "²")
+      .replace(/\^3/g, "³")
+      .replace(/\^4/g, "⁴")
+      .replace(/\^5/g, "⁵")
+      .replace(/\^6/g, "⁶")
+      .replace(/\^7/g, "⁷")
+      .replace(/\^8/g, "⁸")
+      .replace(/\^9/g, "⁹")
+      .replace(/\^1/g, "¹")
+      .replace(/\^0/g, "⁰")
 
     return cleanResponse
   } catch (error) {
