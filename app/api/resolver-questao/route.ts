@@ -137,6 +137,7 @@ INSTRUÇÕES CRÍTICAS DE FORMATAÇÃO:
 - Use texto SIMPLES e LIMPO
 - Use apenas emojis básicos para organização
 - Escreva equações de forma simples: 8x - 21 = 3
+- NUNCA quebre palavras no meio ou use formatação especial em palavras
 
 PRIMEIRO: Identifique se é MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos) ou OUTRAS DISCIPLINAS (história, geografia, biologia, português, etc.)
 
@@ -164,32 +165,29 @@ PRIMEIRO: Identifique se é MATEMÁTICA/FÍSICA/QUÍMICA (com cálculos) ou OUTR
 
 🎯 Objetivo: [Descreva claramente o que está sendo perguntado]
 
-🔍 Informação identificada:
-[Transcreva exatamente a pergunta ou texto da imagem]
-
 📝 Resolução passo a passo:
 
-🔹 Passo 1: [Identificar o tema principal]
+🔹 Passo 1: Identificar o tema principal
 [Explicação detalhada sobre o assunto]
 
 ✅ Resultado final:
-
-[RESPOSTA MUITO DETALHADA E COMPLETA com as seguintes seções:]
 
 👤 Quem foi/O que é:
 • [Informações básicas e definição]
 • [Dados importantes como datas, locais, etc.]
 
 📚 Principais características/feitos:
-
-🏛️ [Categoria relevante - ex: Período Histórico]:
 • [Detalhes específicos]
 • [Fatos importantes]
 • [Contexto histórico/científico]
 
-🌟 [Outra categoria relevante]:
+🏛️ [Categoria relevante - ex: Período Histórico]:
 • [Mais detalhes]
 • [Informações complementares]
+
+🌟 [Outra categoria relevante]:
+• [Detalhes adicionais]
+• [Informações específicas]
 
 🎯 Legado/Importância:
 • [Por que é importante]
@@ -202,7 +200,9 @@ INSTRUÇÕES IMPORTANTES:
 - Use linguagem SIMPLES e CLARA
 - Organize informações em seções lógicas
 - Inclua contexto histórico/científico quando relevante
-- NUNCA use símbolos de formatação complexa`
+- NUNCA use símbolos de formatação complexa
+- NUNCA quebre palavras ou use formatação especial
+- Mantenha todas as palavras íntegras e com formatação normal`
 
   try {
     const completion = await openai.chat.completions.create({
