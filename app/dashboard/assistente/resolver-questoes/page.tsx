@@ -16,31 +16,34 @@ interface ResolucaoResult {
   error?: string
 }
 
-// Função para processar o texto e destacar APENAS equações matemáticas COMPLETAS
+// Função para processar o texto e destacar TODAS as expressões matemáticas
 const processTextWithEquations = (text: string) => {
   const parts = text.split("\n").map((line, lineIndex) => {
-    // Regex para capturar equações matemáticas COMPLETAS
-    const completeEquationRegex =
-      /([0-9]*[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*(?:\s*[+\-×*/]\s*[0-9]+[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*\s*=\s*[0-9]+(?:\s*[+\-×*/]\s*[0-9]+)*|[a-zA-Z]\s*=\s*[0-9]+(?:\s*\/\s*[0-9]+)?(?:\s*[+\-×*/]\s*[0-9]+)*|[a-zA-Z]\s*=\s*[0-9]+(?:\s*e\s*[a-zA-Z]\s*=\s*[0-9]+)*)/g
+    // Regex abrangente para capturar TODAS as expressões matemáticas
+    const mathExpressionRegex =
+      /([a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*(?:\s*[+\-×*/]\s*[0-9]+[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*\s*=\s*[0-9]+(?:\s*[+\-×*/]\s*[0-9]+)*|[a-zA-Z]\s*=\s*[0-9]+(?:\s*\/\s*[0-9]+)?(?:\s*[+\-×*/]\s*[0-9]+)*|[a-zA-Z]\s*=\s*[0-9]+(?:\s*e\s*[a-zA-Z]\s*=\s*[0-9]+)*|[0-9]+(?:\s*[+\-×*/]\s*[0-9]+)+\s*=\s*[0-9]+|$$[a-zA-Z]?\s*[+\-×*/]?\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?$$(?:\s*$$[a-zA-Z]?\s*[+\-×*/]?\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?$$)*\s*=\s*[0-9]+|[a-zA-Z]\s*=\s*[0-9]+(?:\s*,\s*[a-zA-Z]\s*=\s*[0-9]+)*|[0-9]+(?:\s*,\s*[0-9-]+)*(?:\s*,\s*etc\.?)?|[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)+)/g
 
-    // Verifica se a linha contém uma equação matemática
-    const hasEquation = completeEquationRegex.test(line)
+    // Verifica se a linha contém expressões matemáticas
+    const hasMath =
+      /[0-9]+\s*[+\-×*/=]\s*[0-9]+|[a-zA-Z]\s*=\s*[0-9]+|[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]|$$[^)]*$$\s*=\s*[0-9]+|[0-9]+\s*,\s*[0-9-]+/.test(
+        line,
+      )
 
-    if (hasEquation) {
+    if (hasMath) {
       // Reset regex para usar novamente
-      completeEquationRegex.lastIndex = 0
+      mathExpressionRegex.lastIndex = 0
 
       const parts = []
       let lastIndex = 0
       let match
 
-      while ((match = completeEquationRegex.exec(line)) !== null) {
-        // Adiciona texto antes da equação
+      while ((match = mathExpressionRegex.exec(line)) !== null) {
+        // Adiciona texto antes da expressão matemática
         if (match.index > lastIndex) {
           parts.push(line.slice(lastIndex, match.index))
         }
 
-        // Adiciona a equação completa destacada
+        // Adiciona a expressão matemática destacada
         parts.push(
           <span
             key={`${lineIndex}-${match.index}`}
@@ -72,7 +75,7 @@ const processTextWithEquations = (text: string) => {
       )
     }
 
-    // Para linhas sem equações matemáticas, retorna texto normal
+    // Para linhas sem expressões matemáticas, retorna texto normal
     return (
       <div key={lineIndex} className="mb-2">
         {line}
