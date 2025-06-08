@@ -16,34 +16,45 @@ interface ResolucaoResult {
   error?: string
 }
 
-// Função para processar o texto e destacar equações
+// Função para processar o texto e destacar APENAS equações matemáticas
 const processTextWithEquations = (text: string) => {
-  // Regex melhorada para identificar equações matemáticas
-  const equationRegex =
-    /([0-9]*[a-zA-Z]*[²³⁴⁵⁶⁷⁸⁹¹⁰]*\s*[+\-*/=]\s*[0-9]*[a-zA-Z]*[²³⁴⁵⁶⁷⁸⁹¹⁰]*(?:\s*[+\-*/=]\s*[0-9]*[a-zA-Z]*[²³⁴⁵⁶⁷⁸⁹¹⁰]*)*)/g
+  // Regex muito específica para equações matemáticas reais
+  const mathEquationRegex =
+    /(\b[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-*/=]\s*[0-9]+[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-*/=]?\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?|\b[0-9]+[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-*/=]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?|\b[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]\s*[+\-*/=]\s*[0-9]+)/g
 
   const parts = text.split("\n").map((line, lineIndex) => {
-    const lineParts = line.split(equationRegex).map((part, partIndex) => {
-      if (equationRegex.test(part)) {
-        return (
-          <span
-            key={`${lineIndex}-${partIndex}`}
-            className="font-bold text-gray-900"
-            style={{
-              fontFamily: 'Monaco, "Lucida Console", "Courier New", monospace',
-              letterSpacing: "0.5px",
-            }}
-          >
-            {part.trim()}
-          </span>
-        )
-      }
-      return part
-    })
+    // Só aplica formatação se a linha contém uma equação matemática clara
+    if (line.includes("=") && /[0-9]+[a-zA-Z]|[a-zA-Z][0-9]|[a-zA-Z]²|[a-zA-Z]³/.test(line)) {
+      const lineParts = line.split(mathEquationRegex).map((part, partIndex) => {
+        // Verifica se é realmente uma equação matemática
+        if (mathEquationRegex.test(part) && /[0-9]/.test(part) && /[+\-*/=]/.test(part)) {
+          return (
+            <span
+              key={`${lineIndex}-${partIndex}`}
+              className="font-bold text-gray-900"
+              style={{
+                fontFamily: 'Monaco, "Lucida Console", "Courier New", monospace',
+                letterSpacing: "0.5px",
+              }}
+            >
+              {part.trim()}
+            </span>
+          )
+        }
+        return part
+      })
 
+      return (
+        <div key={lineIndex} className="mb-2">
+          {lineParts}
+        </div>
+      )
+    }
+
+    // Para linhas sem equações, retorna texto normal
     return (
       <div key={lineIndex} className="mb-2">
-        {lineParts}
+        {line}
       </div>
     )
   })
