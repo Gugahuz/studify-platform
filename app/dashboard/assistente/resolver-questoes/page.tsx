@@ -16,40 +16,58 @@ interface ResolucaoResult {
   error?: string
 }
 
-// Função para processar o texto e destacar APENAS equações matemáticas
+// Função para processar o texto e destacar APENAS equações matemáticas COMPLETAS
 const processTextWithEquations = (text: string) => {
   const parts = text.split("\n").map((line, lineIndex) => {
-    // Regex muito específica para equações matemáticas completas
-    const mathEquationRegex =
-      /([a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*\s*=\s*[0-9]+|[a-zA-Z]\s*=\s*[0-9-]+(?:\s*e\s*[a-zA-Z]\s*=\s*[0-9-]+)*|[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)+|[0-9]+[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*|$$[a-zA-Z]\s*[+-]\s*[0-9]+$$(?:\s*$$[a-zA-Z]\s*[+-]\s*[0-9]+$$)*\s*=\s*[0-9]+)/g
+    // Regex para capturar equações matemáticas COMPLETAS
+    const completeEquationRegex =
+      /([0-9]*[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*(?:\s*[+\-×*/]\s*[0-9]+[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*\s*=\s*[0-9]+(?:\s*[+\-×*/]\s*[0-9]+)*|[a-zA-Z]\s*=\s*[0-9]+(?:\s*\/\s*[0-9]+)?(?:\s*[+\-×*/]\s*[0-9]+)*|[a-zA-Z]\s*=\s*[0-9]+(?:\s*e\s*[a-zA-Z]\s*=\s*[0-9]+)*)/g
 
-    // Só processa se a linha contém uma equação matemática real
-    if (mathEquationRegex.test(line)) {
-      const lineParts = line.split(mathEquationRegex).map((part, partIndex) => {
-        // Verifica se é realmente uma equação matemática válida
-        if (mathEquationRegex.test(part)) {
-          return (
-            <span
-              key={`${lineIndex}-${partIndex}`}
-              className="math-equation"
-              style={{
-                fontFamily: '"Edu NSW ACT Foundation", "Edu NSW ACT Hand Cursive", cursive',
-                fontWeight: "bold",
-                fontSize: "1.1em",
-                color: "#1f2937",
-                letterSpacing: "0.5px",
-              }}
-            >
-              {part.trim()}
-            </span>
-          )
+    // Verifica se a linha contém uma equação matemática
+    const hasEquation = completeEquationRegex.test(line)
+
+    if (hasEquation) {
+      // Reset regex para usar novamente
+      completeEquationRegex.lastIndex = 0
+
+      const parts = []
+      let lastIndex = 0
+      let match
+
+      while ((match = completeEquationRegex.exec(line)) !== null) {
+        // Adiciona texto antes da equação
+        if (match.index > lastIndex) {
+          parts.push(line.slice(lastIndex, match.index))
         }
-        return part
-      })
+
+        // Adiciona a equação completa destacada
+        parts.push(
+          <span
+            key={`${lineIndex}-${match.index}`}
+            className="math-equation"
+            style={{
+              fontFamily: '"Edu NSW ACT Foundation", "Edu NSW ACT Hand Cursive", cursive',
+              fontWeight: "bold",
+              fontSize: "1.1em",
+              color: "#1f2937",
+              letterSpacing: "0.5px",
+            }}
+          >
+            {match[0].trim()}
+          </span>,
+        )
+
+        lastIndex = match.index + match[0].length
+      }
+
+      // Adiciona texto restante
+      if (lastIndex < line.length) {
+        parts.push(line.slice(lastIndex))
+      }
 
       return (
         <div key={lineIndex} className="mb-2">
-          {lineParts}
+          {parts.length > 0 ? parts : line}
         </div>
       )
     }
