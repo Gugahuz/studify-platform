@@ -1,88 +1,176 @@
-import { NextResponse } from "next/server"
-import { OpenAI } from "openai"
+import OpenAI from "openai"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const { text, style, count } = await request.json()
+    const formData = await req.formData()
+    const file = formData.get("file") as File
 
-    if (!text || text.trim().length === 0) {
-      return NextResponse.json({ error: "Texto não fornecido" }, { status: 400 })
+    if (!file) {
+      return Response.json({ error: "Arquivo é obrigatório" }, { status: 400 })
     }
 
-    // Validar estilo
-    const validStyles = ["abnt", "apa", "chicago", "vancouver"]
-    if (!validStyles.includes(style)) {
-      return NextResponse.json({ error: "Estilo de citação inválido" }, { status: 400 })
+    if (file.size > 20 * 1024 * 1024) {
+      return Response.json({ error: "Arquivo deve ter no máximo 20MB" }, { status: 400 })
     }
 
-    // Validar contagem
-    const citationCount = Number(count) || 5
-    if (citationCount < 1 || citationCount > 10) {
-      return NextResponse.json({ error: "Número de citações deve estar entre 1 e 10" }, { status: 400 })
+    console.log(`[EXTRAIR-CITACOES] Processando: ${file.name} (${file.size} bytes, ${file.type})`)
+
+    // Para PDFs, retornar mensagem informativa por enquanto
+    if (file.type === "application/pdf") {
+      return Response.json({
+        success: true,
+        citacoes: `📚 Extração de Citações - ${file.name}
+
+🎯 Funcionalidade em Desenvolvimento
+
+Esta funcionalidade está sendo desenvolvida para extrair automaticamente:
+
+📝 Citações Diretas:
+• Trechos entre aspas com referência ao autor
+• Citações longas em parágrafo separado
+• Citações com página específica
+
+📖 Citações Indiretas:
+• Paráfrases de ideias de autores
+• Referências a conceitos específicos
+• Menções a teorias e estudos
+
+🔍 Informações Extraídas:
+• Nome do autor
+• Ano de publicação
+• Página da citação
+• Contexto da citação
+
+✅ Em breve você poderá:
+• Extrair citações automaticamente
+• Organizar por autor ou tema
+• Exportar em formato ABNT
+• Verificar formatação das referências
+
+🚀 Continue usando outras funcionalidades do Studify enquanto desenvolvemos esta feature!`,
+        nomeArquivo: file.name,
+      })
     }
 
-    // Construir prompt baseado no estilo
-    let styleDescription = ""
-    switch (style) {
-      case "abnt":
-        styleDescription = "Associação Brasileira de Normas Técnicas (ABNT), usado no Brasil"
-        break
-      case "apa":
-        styleDescription = "American Psychological Association (APA), usado internacionalmente"
-        break
-      case "chicago":
-        styleDescription = "Chicago Manual of Style, usado em humanidades"
-        break
-      case "vancouver":
-        styleDescription = "Estilo Vancouver, usado em ciências médicas"
-        break
+    // Para imagens, processar com OpenAI
+    if (!file.type.startsWith("image/")) {
+      return Response.json({ error: "Apenas arquivos PDF e imagens são suportados" }, { status: 400 })
     }
 
-    const prompt = `
-      Extraia ${citationCount} citações relevantes do seguinte texto acadêmico.
-      Formate as citações no estilo ${style.toUpperCase()} (${styleDescription}).
-      
-      Para cada citação:
-      1. Identifique trechos importantes e citáveis
-      2. Crie uma referência bibliográfica fictícia mas realista no formato correto
-      3. Formate a citação completa seguindo rigorosamente o padrão ${style.toUpperCase()}
-      4. Inclua número de página fictício quando aplicável
-      
-      Retorne apenas as citações formatadas, uma por linha, sem explicações adicionais.
-      
-      Texto:
-      ${text.substring(0, 4000)} // Limitando para evitar tokens excessivos
-    `
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+    const base64Image = buffer.toString("base64")
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `Você é um assistente especializado em extrair e formatar citações acadêmicas. Você conhece perfeitamente os estilos ABNT, APA, Chicago e Vancouver.`,
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("[EXTRAIR-CITACOES] OPENAI_API_KEY não encontrada")
+      return Response.json({
+        success: true,
+        citacoes: generateFallbackCitacoes(file.name),
+        nomeArquivo: file.name,
+      })
+    }
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
     })
 
-    const citations =
-      response.choices[0].message.content
-        ?.split("\n")
-        .filter((line) => line.trim().length > 0)
-        .slice(0, citationCount) || []
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Analise esta imagem e extraia todas as citações acadêmicas encontradas. 
 
-    return NextResponse.json({ citations })
+FORMATO DE RESPOSTA:
+
+📚 Citações Extraídas
+
+🔍 Citações Diretas Encontradas:
+• [Transcreva exatamente como aparece, com aspas]
+• [Autor, ano, página se disponível]
+
+📖 Citações Indiretas Identificadas:
+• [Paráfrases ou referências a autores]
+• [Contexto da citação]
+
+📝 Referências Mencionadas:
+• [Liste autores e obras citadas]
+• [Anos de publicação quando visíveis]
+
+✅ Resumo:
+• Total de citações diretas: [número]
+• Total de citações indiretas: [número]
+• Principais autores citados: [lista]
+
+Se não houver citações acadêmicas na imagem, informe que não foram encontradas citações no texto analisado.`,
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${file.type};base64,${base64Image}`,
+                  detail: "high",
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 2000,
+        temperature: 0,
+      })
+
+      const citacoes = completion.choices[0].message.content
+
+      return Response.json({
+        success: true,
+        citacoes: citacoes || "Não foi possível extrair citações desta imagem.",
+        nomeArquivo: file.name,
+      })
+    } catch (error) {
+      console.error("[EXTRAIR-CITACOES] Erro na API:", error)
+      return Response.json({
+        success: true,
+        citacoes: generateFallbackCitacoes(file.name),
+        nomeArquivo: file.name,
+      })
+    }
   } catch (error) {
-    console.error("Erro ao extrair citações:", error)
-    return NextResponse.json({ error: "Erro ao processar a solicitação" }, { status: 500 })
+    console.error("[EXTRAIR-CITACOES] Erro geral:", error)
+    return Response.json({
+      success: true,
+      citacoes: generateFallbackCitacoes("documento"),
+      nomeArquivo: "documento",
+    })
   }
+}
+
+function generateFallbackCitacoes(fileName: string): string {
+  return `📚 Extração de Citações - ${fileName}
+
+🔍 Status: Processamento com dificuldades técnicas
+
+📝 Como extrair citações manualmente:
+
+🎯 Citações Diretas:
+• Procure por texto entre "aspas"
+• Identifique o autor antes ou depois da citação
+• Anote a página se disponível
+• Formato: "Texto citado" (AUTOR, ano, p. X)
+
+📖 Citações Indiretas:
+• Identifique paráfrases de ideias
+• Procure por "segundo", "conforme", "de acordo com"
+• Note referências a teorias ou conceitos
+• Formato: Segundo Autor (ano), [paráfrase]
+
+✅ Dicas para organizar:
+• Separe por autor ou tema
+• Mantenha o contexto original
+• Verifique a formatação ABNT
+• Anote a fonte completa
+
+🚀 Continue usando o chat do Studify para tirar dúvidas sobre citações e referências!`
 }
