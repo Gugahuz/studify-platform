@@ -77,7 +77,7 @@ TEXTO PARAFRASEADO:
 `
 
     const { text: paraphrasedText } = await generateText({
-      model: openai("gpt-3.5-turbo"),
+      model: openai("gpt-4-turbo"),
       prompt,
       maxTokens: 2000,
       temperature: 0.8,
