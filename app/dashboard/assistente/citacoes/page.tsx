@@ -33,12 +33,29 @@ export default function CitacoesPage() {
     setIsLoading(true)
 
     try {
-      // Simulando processamento de API
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const response = await fetch("/api/extrair-citacoes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: text,
+          style: citationStyle,
+          count: citationCount,
+        }),
+      })
 
-      // Simulando resultados baseados no estilo selecionado
-      const sampleCitations = generateSampleCitations(text, citationStyle, citationCount)
-      setResults(sampleCitations)
+      if (!response.ok) {
+        throw new Error("Erro na resposta da API")
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      setResults(data.citations || [])
       toast.success("Citações extraídas com sucesso!")
     } catch (error) {
       toast.error("Erro ao extrair citações. Tente novamente.")
@@ -74,28 +91,45 @@ export default function CitacoesPage() {
     setIsLoading(true)
 
     try {
-      // Simulando processamento de arquivo
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      // Para arquivos de texto, ler diretamente
+      if (file.type === "text/plain") {
+        const fileText = await file.text()
+        setText(fileText)
 
-      // Simulando texto extraído do arquivo
-      const extractedText = `Este é um texto extraído do arquivo ${file.name}. 
-      A educação é um processo de desenvolvimento da capacidade física, intelectual e moral do ser humano.
-      Segundo Paulo Freire, "Educação não transforma o mundo. Educação muda pessoas. Pessoas transformam o mundo."
-      De acordo com Vygotsky, o aprendizado é um processo social que ocorre através da interação.
-      Piaget afirma que o conhecimento é construído através da interação do sujeito com o meio.
-      A teoria construtivista propõe que o conhecimento é ativamente construído pelo aprendiz.
-      Conforme Bourdieu, a escola reproduz as desigualdades sociais existentes na sociedade.
-      A pedagogia crítica busca desenvolver a consciência crítica dos estudantes.`
+        // Processar através da API
+        const response = await fetch("/api/extrair-citacoes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: fileText,
+            style: citationStyle,
+            count: citationCount,
+          }),
+        })
 
-      setText(extractedText)
+        if (!response.ok) {
+          throw new Error("Erro na resposta da API")
+        }
 
-      // Gerar citações baseadas no texto extraído
-      const sampleCitations = generateSampleCitations(extractedText, citationStyle, citationCount)
-      setResults(sampleCitations)
-      toast.success("Arquivo processado e citações extraídas com sucesso!")
+        const data = await response.json()
+
+        if (data.error) {
+          throw new Error(data.error)
+        }
+
+        setResults(data.citations || [])
+        toast.success("Arquivo processado e citações extraídas com sucesso!")
+      } else {
+        // Para outros formatos, mostrar mensagem informativa
+        toast.info("Processamento de PDF e DOC será implementado em breve. Use arquivos TXT por enquanto.")
+        setFileName(null)
+      }
     } catch (error) {
       toast.error("Erro ao processar o arquivo. Tente novamente.")
       console.error(error)
+      setFileName(null)
     } finally {
       setIsLoading(false)
     }
@@ -384,72 +418,3 @@ export default function CitacoesPage() {
 }
 
 // Função auxiliar para gerar citações de exemplo
-function generateSampleCitations(text: string, style: string, count: number): string[] {
-  // Autores fictícios para demonstração
-  const authors = [
-    "Silva, J.",
-    "Oliveira, M.",
-    "Santos, A.",
-    "Pereira, C.",
-    "Ferreira, R.",
-    "Costa, L.",
-    "Rodrigues, P.",
-    "Almeida, T.",
-    "Martins, B.",
-    "Souza, G.",
-  ]
-
-  // Anos fictícios
-  const years = [2018, 2019, 2020, 2021, 2022, 2023]
-
-  // Títulos fictícios baseados no texto
-  const generateTitle = () => {
-    const words = text
-      .split(" ")
-      .filter((word) => word.length > 3)
-      .filter((word) => !["para", "como", "este", "esta", "pelo", "pela"].includes(word.toLowerCase()))
-
-    const randomStart = Math.floor(Math.random() * Math.max(1, words.length - 5))
-    const titleWords = words.slice(randomStart, randomStart + Math.floor(Math.random() * 3) + 3)
-    return titleWords.join(" ").replace(/[.,;:!?]/g, "") + (Math.random() > 0.5 ? ": uma análise" : "")
-  }
-
-  // Gerar frases do texto
-  const sentences = text
-    .replace(/([.!?])\s*(?=[A-Z])/g, "$1|")
-    .split("|")
-    .filter((sentence) => sentence.length > 30)
-
-  // Gerar citações baseadas no estilo
-  const citations = []
-
-  for (let i = 0; i < Math.min(count, sentences.length); i++) {
-    const author = authors[Math.floor(Math.random() * authors.length)]
-    const year = years[Math.floor(Math.random() * years.length)]
-    const title = generateTitle()
-    const sentence = sentences[i] || "Este é um exemplo de citação extraída do texto."
-
-    let citation = ""
-
-    switch (style) {
-      case "abnt":
-        citation = `"${sentence}" (${author.split(",")[0].toUpperCase()}, ${year}, p. ${Math.floor(Math.random() * 100) + 1}).`
-        break
-      case "apa":
-        citation = `${author} (${year}) afirma que "${sentence}" (p. ${Math.floor(Math.random() * 100) + 1}).`
-        break
-      case "chicago":
-        citation = `${author.split(",").reverse().join(" ")}, ${title}, (São Paulo: Editora Acadêmica, ${year}), ${Math.floor(Math.random() * 100) + 1}.`
-        break
-      case "vancouver":
-        citation = `${i + 1}. ${author.split(",").reverse().join(" ")}. ${title}. Rev Acad Bras. ${year};${Math.floor(Math.random() * 20) + 1}(${Math.floor(Math.random() * 4) + 1}):${Math.floor(Math.random() * 100) + 1}-${Math.floor(Math.random() * 100) + 101}.`
-        break
-      default:
-        citation = `${author} (${year}). ${title}. "${sentence}".`
-    }
-
-    citations.push(citation)
-  }
-
-  return citations
-}
