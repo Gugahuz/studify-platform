@@ -16,78 +16,45 @@ interface ResolucaoResult {
   error?: string
 }
 
-// Função para processar o texto e destacar TODAS as equações matemáticas
+// Função para processar o texto e destacar APENAS equações matemáticas
 const processTextWithEquations = (text: string) => {
   const parts = text.split("\n").map((line, lineIndex) => {
-    // Regex abrangente para capturar todas as expressões matemáticas
-    const mathPatterns = [
-      // Equações completas com =
-      /([a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*=\s*[0-9]+)/g,
-      // Variáveis com valores: x = 1, x = 2, etc.
-      /([a-zA-Z]\s*=\s*[0-9-]+)/g,
-      // Expressões com expoentes: x², x³, etc.
-      /([0-9]*[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]+)/g,
-      // Expressões algébricas: 2x, 3x², -5x, etc.
-      /([0-9]*[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?)/g,
-      // Operações matemáticas: +, -, ×, /, =
-      /([+\-×*/=])/g,
-      // Números isolados em contexto matemático
-      /(\b[0-9]+\b)/g,
-      // Parênteses com expressões: (x - 2), (x - 3), etc.
-      /($$[a-zA-Z]\s*[+-]\s*[0-9]+$$)/g,
-      // Expressões completas: x³ - 6x² + 11x - 6
-      /([a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*)/g,
-    ]
+    // Regex muito específica para equações matemáticas completas
+    const mathEquationRegex =
+      /([a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*\s*=\s*[0-9]+|[a-zA-Z]\s*=\s*[0-9-]+(?:\s*e\s*[a-zA-Z]\s*=\s*[0-9-]+)*|[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)+|[0-9]+[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]?\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?(?:\s*[+\-×*/]\s*[0-9]*[a-zA-Z]?[²³⁴⁵⁶⁷⁸⁹¹⁰]?)*|$$[a-zA-Z]\s*[+-]\s*[0-9]+$$(?:\s*$$[a-zA-Z]\s*[+-]\s*[0-9]+$$)*\s*=\s*[0-9]+)/g
 
-    // Verifica se a linha contém matemática
-    const hasMath = /[a-zA-Z][²³⁴⁵⁶⁷⁸⁹¹⁰]|[a-zA-Z]\s*=\s*[0-9]|[0-9][a-zA-Z]|[+\-×*/=]/.test(line)
-
-    if (hasMath) {
-      // Combina todos os padrões em uma regex única
-      const combinedRegex = new RegExp(mathPatterns.map((p) => p.source).join("|"), "g")
-
-      const parts = []
-      let lastIndex = 0
-      let match
-
-      while ((match = combinedRegex.exec(line)) !== null) {
-        // Adiciona texto antes da expressão matemática
-        if (match.index > lastIndex) {
-          parts.push(line.slice(lastIndex, match.index))
+    // Só processa se a linha contém uma equação matemática real
+    if (mathEquationRegex.test(line)) {
+      const lineParts = line.split(mathEquationRegex).map((part, partIndex) => {
+        // Verifica se é realmente uma equação matemática válida
+        if (mathEquationRegex.test(part)) {
+          return (
+            <span
+              key={`${lineIndex}-${partIndex}`}
+              className="math-equation"
+              style={{
+                fontFamily: '"Edu NSW ACT Foundation", "Edu NSW ACT Hand Cursive", cursive',
+                fontWeight: "bold",
+                fontSize: "1.1em",
+                color: "#1f2937",
+                letterSpacing: "0.5px",
+              }}
+            >
+              {part.trim()}
+            </span>
+          )
         }
-
-        // Adiciona a expressão matemática destacada
-        parts.push(
-          <span
-            key={`${lineIndex}-${match.index}`}
-            className="math-equation"
-            style={{
-              fontFamily: '"Edu NSW ACT Foundation", "Edu NSW ACT Hand Cursive", cursive',
-              fontWeight: "bold",
-              fontSize: "1.1em",
-              color: "#1f2937",
-            }}
-          >
-            {match[0]}
-          </span>,
-        )
-
-        lastIndex = match.index + match[0].length
-      }
-
-      // Adiciona texto restante
-      if (lastIndex < line.length) {
-        parts.push(line.slice(lastIndex))
-      }
+        return part
+      })
 
       return (
         <div key={lineIndex} className="mb-2">
-          {parts.length > 0 ? parts : line}
+          {lineParts}
         </div>
       )
     }
 
-    // Para linhas sem matemática, retorna texto normal
+    // Para linhas sem equações matemáticas, retorna texto normal
     return (
       <div key={lineIndex} className="mb-2">
         {line}
@@ -117,7 +84,9 @@ export default function ResolverQuestoesPage() {
     document.head.appendChild(link)
 
     return () => {
-      document.head.removeChild(link)
+      if (document.head.contains(link)) {
+        document.head.removeChild(link)
+      }
     }
   }, [])
 
