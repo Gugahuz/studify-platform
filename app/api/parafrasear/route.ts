@@ -1,39 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
 import OpenAI from "openai"
 
-// Verificar se a API key existe
-if (!process.env.OPENAI_API_KEY) {
-  console.error("OPENAI_API_KEY não encontrada nas variáveis de ambiente")
-}
-
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "fake-key-for-development",
+  apiKey: process.env.OPENAI_API_KEY,
 })
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Iniciando paráfrase...")
-
     const body = await request.json()
-    console.log("Body recebido:", body)
-
     const { text, tone = "neutro", style = "academico", complexity = "medio" } = body
 
     if (!text || typeof text !== "string") {
-      console.error("Texto inválido:", text)
       return NextResponse.json({ error: "Texto é obrigatório" }, { status: 400 })
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("OpenAI API key não configurada")
-      return NextResponse.json(
-        {
-          error: "Serviço temporariamente indisponível",
-          paraphrasedText:
-            "Esta funcionalidade requer configuração da API OpenAI. Por favor, tente novamente mais tarde.",
-        },
-        { status: 200 },
-      )
     }
 
     // Configurações baseadas nas seleções do usuário
@@ -59,10 +37,8 @@ export async function POST(request: NextRequest) {
       avancado: "Use vocabulário sofisticado e estruturas complexas",
     }
 
-    console.log("Configurações:", { tone, style, complexity })
-
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4-turbo",
       messages: [
         {
           role: "system",
@@ -90,52 +66,28 @@ IMPORTANTE: Retorne APENAS o texto parafraseado, sem explicações, comentários
           content: text,
         },
       ],
-      max_tokens: 3000,
+      max_tokens: 4000,
       temperature: 0.7,
     })
 
     const paraphrasedText = completion.choices[0]?.message?.content?.trim()
 
     if (!paraphrasedText) {
-      console.error("Resposta vazia da OpenAI")
       throw new Error("Não foi possível gerar a paráfrase")
     }
 
-    console.log("Paráfrase gerada com sucesso")
     return NextResponse.json({
       paraphrasedText,
     })
   } catch (error: any) {
-    console.error("Erro detalhado na API de paráfrase:", error)
+    console.error("Erro na API de paráfrase:", error)
 
-    // Tratamento específico para diferentes tipos de erro
-    if (error?.code === "insufficient_quota") {
-      return NextResponse.json(
-        {
-          error: "Limite de uso atingido",
-          paraphrasedText: "O serviço atingiu o limite de uso. Tente novamente mais tarde.",
-        },
-        { status: 200 },
-      )
-    }
-
-    if (error?.code === "invalid_api_key") {
-      return NextResponse.json(
-        {
-          error: "Configuração inválida",
-          paraphrasedText: "Erro de configuração do serviço. Entre em contato com o suporte.",
-        },
-        { status: 200 },
-      )
-    }
-
-    // Erro genérico
     return NextResponse.json(
       {
-        error: "Erro interno do servidor",
-        paraphrasedText: "Ocorreu um erro ao processar sua solicitação. Tente novamente em alguns instantes.",
+        error: "Erro ao processar paráfrase",
+        details: error.message,
       },
-      { status: 200 },
+      { status: 500 },
     )
   }
 }
