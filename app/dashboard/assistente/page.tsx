@@ -103,7 +103,13 @@ export default function AssistentePage() {
                 <div className="flex justify-center">
                   <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
                     {feature.id === "falar-com-studo" ? (
-                      <Image src="/images/studo-avatar.png" alt="Studo" width={32} height={32} className="w-8 h-8" />
+                      <Image
+                        src="/images/studo-avatar.png"
+                        alt="Studo"
+                        width={32}
+                        height={32}
+                        className="w-full h-full object-cover rounded-full"
+                      />
                     ) : (
                       <IconComponent className={`h-8 w-8 ${feature.iconColor}`} />
                     )}

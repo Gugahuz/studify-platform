@@ -4,7 +4,7 @@ import { useChat } from "ai/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { SendHorizontal, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useUserData } from "@/hooks/use-user-data"
 
@@ -86,7 +86,9 @@ export function ChatInterface() {
               disabled={!input.trim() || isLoading}
               className="bg-studify-primary hover:bg-studify-primary/90 h-12 px-4"
             >
-              <SendHorizontal className="h-5 w-5" />
+              <svg className="h-5 w-5 text-studify-primary" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
             </Button>
           </form>
         </div>
@@ -215,7 +217,9 @@ export function ChatInterface() {
             disabled={!input.trim() || isLoading}
             className="bg-studify-primary hover:bg-studify-primary/90 h-12 px-4"
           >
-            <SendHorizontal className="h-5 w-5" />
+            <svg className="h-5 w-5 text-studify-primary" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
           </Button>
         </form>
       </div>
