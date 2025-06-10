@@ -1,16 +1,39 @@
 import { type NextRequest, NextResponse } from "next/server"
 import OpenAI from "openai"
 
+// Verificar se a API key existe
+if (!process.env.OPENAI_API_KEY) {
+  console.error("OPENAI_API_KEY não encontrada nas variáveis de ambiente")
+}
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || "fake-key-for-development",
 })
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, tone, style, complexity } = await request.json()
+    console.log("Iniciando paráfrase...")
+
+    const body = await request.json()
+    console.log("Body recebido:", body)
+
+    const { text, tone = "neutro", style = "academico", complexity = "medio" } = body
 
     if (!text || typeof text !== "string") {
+      console.error("Texto inválido:", text)
       return NextResponse.json({ error: "Texto é obrigatório" }, { status: 400 })
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("OpenAI API key não configurada")
+      return NextResponse.json(
+        {
+          error: "Serviço temporariamente indisponível",
+          paraphrasedText:
+            "Esta funcionalidade requer configuração da API OpenAI. Por favor, tente novamente mais tarde.",
+        },
+        { status: 200 },
+      )
     }
 
     // Configurações baseadas nas seleções do usuário
@@ -36,17 +59,19 @@ export async function POST(request: NextRequest) {
       avancado: "Use vocabulário sofisticado e estruturas complexas",
     }
 
+    console.log("Configurações:", { tone, style, complexity })
+
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content: `Você é um especialista em paráfrase de textos em português brasileiro com alta precisão e qualidade profissional.
 
 CONFIGURAÇÕES SOLICITADAS:
-- Tom: ${tone} - ${toneInstructions[tone as keyof typeof toneInstructions]}
-- Estilo: ${style} - ${styleInstructions[style as keyof typeof styleInstructions]}
-- Complexidade: ${complexity} - ${complexityInstructions[complexity as keyof typeof complexityInstructions]}
+- Tom: ${tone} - ${toneInstructions[tone as keyof typeof toneInstructions] || toneInstructions.neutro}
+- Estilo: ${style} - ${styleInstructions[style as keyof typeof styleInstructions] || styleInstructions.academico}
+- Complexidade: ${complexity} - ${complexityInstructions[complexity as keyof typeof complexityInstructions] || complexityInstructions.medio}
 
 INSTRUÇÕES OBRIGATÓRIAS:
 1. Reescreva o texto mantendo EXATAMENTE o mesmo significado
@@ -72,14 +97,45 @@ IMPORTANTE: Retorne APENAS o texto parafraseado, sem explicações, comentários
     const paraphrasedText = completion.choices[0]?.message?.content?.trim()
 
     if (!paraphrasedText) {
+      console.error("Resposta vazia da OpenAI")
       throw new Error("Não foi possível gerar a paráfrase")
     }
 
+    console.log("Paráfrase gerada com sucesso")
     return NextResponse.json({
       paraphrasedText,
     })
-  } catch (error) {
-    console.error("Erro na API de paráfrase:", error)
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+  } catch (error: any) {
+    console.error("Erro detalhado na API de paráfrase:", error)
+
+    // Tratamento específico para diferentes tipos de erro
+    if (error?.code === "insufficient_quota") {
+      return NextResponse.json(
+        {
+          error: "Limite de uso atingido",
+          paraphrasedText: "O serviço atingiu o limite de uso. Tente novamente mais tarde.",
+        },
+        { status: 200 },
+      )
+    }
+
+    if (error?.code === "invalid_api_key") {
+      return NextResponse.json(
+        {
+          error: "Configuração inválida",
+          paraphrasedText: "Erro de configuração do serviço. Entre em contato com o suporte.",
+        },
+        { status: 200 },
+      )
+    }
+
+    // Erro genérico
+    return NextResponse.json(
+      {
+        error: "Erro interno do servidor",
+        paraphrasedText: "Ocorreu um erro ao processar sua solicitação. Tente novamente em alguns instantes.",
+      },
+      { status: 200 },
+    )
   }
 }

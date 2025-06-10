@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, RefreshCw, Copy, Check, Wand2 } from "lucide-react"
+import { ArrowLeft, RefreshCw, Copy, Check, Wand2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
 export default function ParafraseadorPage() {
@@ -17,12 +17,18 @@ export default function ParafraseadorPage() {
   const [tone, setTone] = useState("neutro")
   const [style, setStyle] = useState("academico")
   const [complexity, setComplexity] = useState("medio")
+  const [error, setError] = useState("")
 
   const handleParaphrase = async () => {
     if (!inputText.trim()) return
 
     setIsLoading(true)
+    setError("")
+    setParaphrasedText("")
+
     try {
+      console.log("Enviando requisição para paráfrase...")
+
       const response = await fetch("/api/parafrasear", {
         method: "POST",
         headers: {
@@ -36,15 +42,28 @@ export default function ParafraseadorPage() {
         }),
       })
 
-      if (!response.ok) {
-        throw new Error("Erro ao parafrasear texto")
-      }
+      console.log("Status da resposta:", response.status)
 
       const data = await response.json()
-      setParaphrasedText(data.paraphrasedText)
-    } catch (error) {
-      console.error("Erro:", error)
-      setParaphrasedText("Erro ao parafrasear o texto. Tente novamente.")
+      console.log("Dados recebidos:", data)
+
+      if (!response.ok && !data.paraphrasedText) {
+        throw new Error(data.error || "Erro desconhecido")
+      }
+
+      if (data.paraphrasedText) {
+        setParaphrasedText(data.paraphrasedText)
+      } else {
+        throw new Error("Resposta inválida do servidor")
+      }
+
+      if (data.error) {
+        setError(data.error)
+      }
+    } catch (error: any) {
+      console.error("Erro no handleParaphrase:", error)
+      setError(error.message || "Erro ao parafrasear texto")
+      setParaphrasedText("Ocorreu um erro ao processar sua solicitação. Verifique sua conexão e tente novamente.")
     } finally {
       setIsLoading(false)
     }
@@ -74,6 +93,18 @@ export default function ParafraseadorPage() {
           <p className="text-gray-600">Reescreva textos com precisão e personalização avançada</p>
         </div>
       </div>
+
+      {/* Erro Alert */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm">{error}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Configurações */}
       <Card className="border-teal-100">
