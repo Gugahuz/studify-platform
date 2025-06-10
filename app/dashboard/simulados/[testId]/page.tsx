@@ -9,9 +9,9 @@ import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { ChevronLeft, ChevronRight, Flag } from "lucide-react"
-import { TestTimer } from "@/components/test-timer"
+import { ChevronLeft, ChevronRight, Flag, Clock } from "lucide-react"
 import { TestResults } from "@/components/test-results"
+import { useUserData } from "@/hooks/use-user-data"
 
 // Mock test data with questions
 const mockTests = {
@@ -94,6 +94,37 @@ const mockTests = {
         explanation:
           "A conjunção 'embora' introduz uma oração subordinada adverbial concessiva, expressando uma ideia contrária à da oração principal.",
       },
+      {
+        id: 2,
+        subject: "Português",
+        question: "Qual das alternativas apresenta um exemplo de linguagem conotativa?",
+        options: [
+          "O céu está azul hoje",
+          "Ela tem um coração de ouro",
+          "A temperatura é de 25 graus",
+          "O livro tem 300 páginas",
+          "São 15 horas",
+        ],
+        correctAnswer: 1,
+        explanation:
+          "A expressão 'coração de ouro' é um exemplo de linguagem conotativa, pois usa o sentido figurado para expressar bondade.",
+      },
+    ],
+  },
+  3: {
+    id: 3,
+    title: "Matemática - Funções e Geometria",
+    subject: "Matemática",
+    duration: 60,
+    questions: [
+      {
+        id: 1,
+        subject: "Matemática",
+        question: "Qual é o valor de x na equação 2x + 5 = 15?",
+        options: ["3", "5", "7", "10", "15"],
+        correctAnswer: 1,
+        explanation: "2x + 5 = 15 → 2x = 10 → x = 5",
+      },
     ],
   },
 }
@@ -112,6 +143,7 @@ export default function TestPage() {
   const router = useRouter()
   const testId = Number.parseInt(params.testId as string)
   const test = mockTests[testId as keyof typeof mockTests]
+  const { userProfile } = useUserData()
 
   const [testState, setTestState] = useState<TestState>("not-started")
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -121,6 +153,7 @@ export default function TestPage() {
   const [testStartTime, setTestStartTime] = useState<Date | null>(null)
   const [questionStartTime, setQuestionStartTime] = useState<Date | null>(null)
   const [userRating, setUserRating] = useState<number>(0)
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (!test) {
@@ -138,10 +171,33 @@ export default function TestPage() {
     setTimeRemaining(test.duration * 60) // Convert minutes to seconds
   }, [test, router])
 
+  useEffect(() => {
+    // Clean up timer on unmount
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval)
+      }
+    }
+  }, [timerInterval])
+
   const startTest = () => {
     setTestState("in-progress")
     setTestStartTime(new Date())
     setQuestionStartTime(new Date())
+
+    // Start timer
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          finishTest()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    setTimerInterval(interval)
   }
 
   const handleAnswerChange = (questionId: number, answerIndex: number) => {
@@ -188,6 +244,12 @@ export default function TestPage() {
   }
 
   const finishTest = () => {
+    // Stop timer
+    if (timerInterval) {
+      clearInterval(timerInterval)
+      setTimerInterval(null)
+    }
+
     if (questionStartTime) {
       const now = new Date()
       const timeSpent = (now.getTime() - questionStartTime.getTime()) / 1000
@@ -201,10 +263,6 @@ export default function TestPage() {
     }
 
     setTestState("completed")
-  }
-
-  const handleTimeUp = () => {
-    finishTest()
   }
 
   const restartTest = () => {
@@ -225,7 +283,17 @@ export default function TestPage() {
   }
 
   if (!test) {
-    return <div>Carregando...</div>
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <h2 className="text-xl font-semibold mb-4">Teste não encontrado</h2>
+            <p className="text-gray-600 mb-4">O teste solicitado não foi encontrado.</p>
+            <Button onClick={() => router.push("/dashboard/simulados")}>Voltar para Simulados</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (testState === "not-started") {
@@ -308,7 +376,12 @@ export default function TestPage() {
               <Badge variant="outline">{test.subject}</Badge>
             </div>
             <div className="flex items-center gap-4">
-              <TestTimer initialTime={timeRemaining} onTimeUp={handleTimeUp} onTimeUpdate={setTimeRemaining} />
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4" />
+                <span>
+                  {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, "0")}
+                </span>
+              </div>
               <Button onClick={finishTest} variant="outline">
                 Finalizar Teste
               </Button>

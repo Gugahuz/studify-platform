@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, Users, BookOpen, Search, Star, TrendingUp } from "lucide-react"
+import { Clock, Users, BookOpen, Search, Star, TrendingUp, History } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 // Mock data for practice tests
 const practiceTests = [
@@ -189,14 +190,22 @@ export default function SimuladosPage() {
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* Header Section */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-blue-100 rounded-lg">
-            <BookOpen className="h-8 w-8 text-blue-600" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <BookOpen className="h-8 w-8 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Simulados</h1>
+              <p className="text-gray-600">Pratique com simulados reais e melhore seu desempenho</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Simulados</h1>
-            <p className="text-gray-600">Pratique com simulados reais e melhore seu desempenho</p>
-          </div>
+          <Link href="/dashboard/simulados/historico">
+            <Button variant="outline" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Ver Histórico
+            </Button>
+          </Link>
         </div>
 
         {/* Stats Cards */}
