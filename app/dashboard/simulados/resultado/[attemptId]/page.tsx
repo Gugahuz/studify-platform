@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Clock, CheckCircle, XCircle, Award, AlertCircle } from "lucide-react"
+import { ArrowLeft, Clock, CheckCircle, XCircle, Star, Award, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -50,6 +50,8 @@ export default function TestResultPage() {
   const [result, setResult] = useState<TestResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [rating, setRating] = useState<number>(0)
+  const [submittingRating, setSubmittingRating] = useState(false)
 
   useEffect(() => {
     if (attemptId) {
@@ -70,6 +72,7 @@ export default function TestResultPage() {
       }
 
       setResult(data.data)
+      setRating(data.data.attempt.user_rating || 0)
     } catch (error: any) {
       console.error("❌ Error fetching test result:", error)
       setError(error.message)
@@ -80,6 +83,42 @@ export default function TestResultPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRating = async (newRating: number) => {
+    try {
+      setSubmittingRating(true)
+
+      const response = await fetch(`/api/test-results/${attemptId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_rating: newRating }),
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to update rating")
+      }
+
+      setRating(newRating)
+      toast({
+        title: "Avaliação enviada",
+        description: "Obrigado por avaliar este teste!",
+        variant: "success",
+      })
+    } catch (error: any) {
+      console.error("❌ Error updating rating:", error)
+      toast({
+        title: "Erro ao avaliar",
+        description: "Não foi possível enviar sua avaliação.",
+        variant: "destructive",
+      })
+    } finally {
+      setSubmittingRating(false)
     }
   }
 
@@ -237,7 +276,40 @@ export default function TestResultPage() {
         </CardContent>
       </Card>
 
-      {/* Detailed Answers - Removed Rating Section */}
+      {/* Rating Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Avalie este teste</CardTitle>
+          <CardDescription>Sua avaliação nos ajuda a melhorar a qualidade dos testes</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => handleRating(star)}
+                  disabled={submittingRating}
+                  className="p-1 hover:scale-110 transition-transform disabled:opacity-50"
+                >
+                  <Star
+                    className={`h-6 w-6 ${
+                      star <= rating ? "text-yellow-400 fill-current" : "text-gray-300 hover:text-yellow-200"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            {rating > 0 && (
+              <p className="text-sm text-gray-600">
+                Você avaliou este teste com {rating} estrela{rating > 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Detailed Answers */}
       <Card>
         <CardHeader>
           <CardTitle>Revisão das Questões</CardTitle>
@@ -245,77 +317,71 @@ export default function TestResultPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {answers && answers.length > 0 ? (
-              answers.map((answer, index) => (
-                <div key={answer.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          answer.is_correct
-                            ? "bg-green-100 text-green-700"
-                            : answer.user_answer
-                              ? "bg-red-100 text-red-700"
-                              : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {index + 1}
-                      </div>
-                      <div>
-                        <Badge variant="outline" className="text-xs">
-                          {answer.subject_area} • {answer.difficulty}
-                        </Badge>
-                        {answer.time_spent > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">Tempo: {formatTime(answer.time_spent)}</p>
-                        )}
-                      </div>
+            {answers.map((answer, index) => (
+              <div key={answer.id} className="border rounded-lg p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        answer.is_correct
+                          ? "bg-green-100 text-green-700"
+                          : answer.user_answer
+                            ? "bg-red-100 text-red-700"
+                            : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {index + 1}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {answer.is_correct ? (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                      ) : answer.user_answer ? (
-                        <XCircle className="h-5 w-5 text-red-500" />
-                      ) : (
-                        <AlertCircle className="h-5 w-5 text-yellow-500" />
+                    <div>
+                      <Badge variant="outline" className="text-xs">
+                        {answer.subject_area} • {answer.difficulty}
+                      </Badge>
+                      {answer.time_spent > 0 && (
+                        <p className="text-xs text-gray-500 mt-1">Tempo: {formatTime(answer.time_spent)}</p>
                       )}
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    {answer.is_correct ? (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : answer.user_answer ? (
+                      <XCircle className="h-5 w-5 text-red-500" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-yellow-500" />
+                    )}
+                  </div>
+                </div>
 
-                  <div className="space-y-3">
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium mb-2">Questão:</h4>
+                    <p className="text-gray-700">{answer.question_text}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <h4 className="font-medium mb-2">Questão:</h4>
-                      <p className="text-gray-700">{answer.question_text}</p>
+                      <h5 className="font-medium text-sm mb-1">Sua resposta:</h5>
+                      <p
+                        className={`p-2 rounded text-sm ${
+                          answer.user_answer
+                            ? answer.is_correct
+                              ? "bg-green-50 text-green-700"
+                              : "bg-red-50 text-red-700"
+                            : "bg-yellow-50 text-yellow-700"
+                        }`}
+                      >
+                        {answer.user_answer || "Não respondida"}
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h5 className="font-medium text-sm mb-1">Sua resposta:</h5>
-                        <p
-                          className={`p-2 rounded text-sm ${
-                            answer.user_answer
-                              ? answer.is_correct
-                                ? "bg-green-50 text-green-700"
-                                : "bg-red-50 text-red-700"
-                              : "bg-yellow-50 text-yellow-700"
-                          }`}
-                        >
-                          {answer.user_answer || "Não respondida"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <h5 className="font-medium text-sm mb-1">Resposta correta:</h5>
-                        <p className="p-2 rounded text-sm bg-green-50 text-green-700">{answer.correct_answer}</p>
-                      </div>
+                    <div>
+                      <h5 className="font-medium text-sm mb-1">Resposta correta:</h5>
+                      <p className="p-2 rounded text-sm bg-green-50 text-green-700">{answer.correct_answer}</p>
                     </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Nenhuma questão encontrada para este teste.</p>
               </div>
-            )}
+            ))}
           </div>
         </CardContent>
       </Card>
