@@ -1,399 +1,308 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Clock, CheckCircle, XCircle, Star, Award, AlertCircle } from "lucide-react"
-import Link from "next/link"
-import { useParams } from "next/navigation"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Star, Trophy, Clock, CheckCircle, XCircle, ChevronLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { MaintenanceMessage } from "@/components/maintenance-message"
 
-interface TestAnswer {
-  id: string
+interface TestAnswerDetail {
+  id: number
+  attempt_id: string
   question_id: number
   question_text: string
   user_answer: string | null
   correct_answer: string
   is_correct: boolean
-  time_spent: number
-  subject_area: string
-  difficulty: string
+  time_spent_on_question_seconds: number | null
+  subject_area: string | null
+  difficulty: string | null
 }
 
-interface TestAttempt {
+interface TestDetails {
+  id: number
+  title: string
+  subject: string | null
+  description: string | null
+  duration_minutes: number | null
+}
+
+interface AttemptDetails {
   id: string
+  user_id: string
   test_id: number
-  test_title: string
-  subject: string
   score: number
   total_questions: number
   correct_answers: number
   incorrect_answers: number
   unanswered_questions: number
-  time_spent: number
-  time_allowed: number
+  time_spent_seconds: number
+  time_allowed_seconds: number
   completed_at: string
-  user_rating?: number
+  user_rating: number | null
+  tests: TestDetails // Joined test data
 }
 
-interface TestResult {
-  attempt: TestAttempt
-  answers: TestAnswer[]
+interface FullResultData {
+  attempt: AttemptDetails
+  answers: TestAnswerDetail[]
 }
 
-export default function TestResultPage() {
+export default function SimuladoResultadoPage() {
   const params = useParams()
+  const router = useRouter()
   const { toast } = useToast()
   const attemptId = params.attemptId as string
 
-  const [result, setResult] = useState<TestResult | null>(null)
+  const [resultData, setResultData] = useState<FullResultData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [rating, setRating] = useState<number>(0)
-  const [submittingRating, setSubmittingRating] = useState(false)
+  const [currentRating, setCurrentRating] = useState<number>(0)
+  const [ratingSubmitted, setRatingSubmitted] = useState(false)
 
   useEffect(() => {
     if (attemptId) {
-      fetchTestResult()
+      fetchResultDetails()
     }
   }, [attemptId])
 
-  const fetchTestResult = async () => {
+  const fetchResultDetails = async () => {
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      setError(null)
-
       const response = await fetch(`/api/test-results/${attemptId}`)
-      const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to fetch test result")
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.error || `Failed to fetch result details: ${response.statusText}`)
       }
-
-      setResult(data.data)
-      setRating(data.data.attempt.user_rating || 0)
-    } catch (error: any) {
-      console.error("❌ Error fetching test result:", error)
-      setError(error.message)
-      toast({
-        title: "Erro ao carregar resultado",
-        description: "Não foi possível carregar os detalhes do teste.",
-        variant: "destructive",
-      })
+      const data = await response.json()
+      if (data.success) {
+        setResultData(data.data)
+        setCurrentRating(data.data.attempt.user_rating || 0)
+        setRatingSubmitted(!!data.data.attempt.user_rating)
+      } else {
+        throw new Error(data.error || "Could not load result details.")
+      }
+    } catch (err: any) {
+      setError(err.message)
+      toast({ title: "Erro ao Carregar Resultado", description: err.message, variant: "destructive" })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleRating = async (newRating: number) => {
+  const handleRatingChange = async (rating: number) => {
+    if (!resultData) return
+    setCurrentRating(rating)
     try {
-      setSubmittingRating(true)
-
       const response = await fetch(`/api/test-results/${attemptId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ user_rating: newRating }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_rating: rating }),
       })
-
       const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to update rating")
+      if (data.success) {
+        toast({ title: "Avaliação Enviada", description: "Obrigado pelo seu feedback!" })
+        setRatingSubmitted(true)
+        // Update local data if needed, or rely on re-fetch/state
+        setResultData((prev) => (prev ? { ...prev, attempt: { ...prev.attempt, user_rating: rating } } : null))
+      } else {
+        throw new Error(data.error || "Falha ao enviar avaliação.")
       }
-
-      setRating(newRating)
-      toast({
-        title: "Avaliação enviada",
-        description: "Obrigado por avaliar este teste!",
-        variant: "success",
-      })
-    } catch (error: any) {
-      console.error("❌ Error updating rating:", error)
-      toast({
-        title: "Erro ao avaliar",
-        description: "Não foi possível enviar sua avaliação.",
-        variant: "destructive",
-      })
-    } finally {
-      setSubmittingRating(false)
+    } catch (err: any) {
+      toast({ title: "Erro na Avaliação", description: err.message, variant: "destructive" })
+      setCurrentRating(resultData.attempt.user_rating || 0) // Revert on error
     }
   }
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`
-    } else if (minutes > 0) {
-      return `${minutes}m ${secs}s`
-    } else {
-      return `${secs}s`
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+  const formatTime = (seconds: number | null | undefined) => {
+    if (seconds === null || seconds === undefined) return "N/A"
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    return `${h > 0 ? `${h}h ` : ""}${m > 0 ? `${m}m ` : ""}${s}s`
   }
 
   const getPerformanceLevel = (score: number) => {
-    if (score >= 90) return { level: "Excelente", color: "text-green-600", bg: "bg-green-50" }
-    if (score >= 80) return { level: "Muito Bom", color: "text-blue-600", bg: "bg-blue-50" }
-    if (score >= 70) return { level: "Bom", color: "text-yellow-600", bg: "bg-yellow-50" }
-    if (score >= 60) return { level: "Regular", color: "text-orange-600", bg: "bg-orange-50" }
-    return { level: "Precisa Melhorar", color: "text-red-600", bg: "bg-red-50" }
+    if (score >= 90) return { level: "Excelente", color: "bg-green-500", textColor: "text-green-700" }
+    if (score >= 70) return { level: "Bom", color: "bg-blue-500", textColor: "text-blue-700" }
+    if (score >= 50) return { level: "Regular", color: "bg-yellow-500", textColor: "text-yellow-700" }
+    return { level: "Precisa Melhorar", color: "bg-red-500", textColor: "text-red-700" }
   }
+
+  useEffect(() => {
+    if (attemptId) {
+      fetchResultDetails()
+    }
+    // Redirect to the main simulados page after a short delay
+    const timer = setTimeout(() => {
+      router.push("/dashboard/simulados")
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [attemptId, router])
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-48"></div>
+      <div className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+        <Skeleton className="h-10 w-1/2" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-32 bg-gray-200 rounded-lg"></div>
-            </div>
-          ))}
-        </div>
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-40 w-full" />
       </div>
     )
   }
 
-  if (error || !result) {
+  if (error || !resultData) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/simulados/historico">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Resultado do Teste</h1>
-            <p className="text-gray-600">Detalhes do seu desempenho</p>
-          </div>
-        </div>
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-red-600 mb-4">Erro ao carregar resultado do teste</p>
-            <Button onClick={fetchTestResult}>Tentar novamente</Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <MaintenanceMessage
+          title="Redirecionando..."
+          message="Esta página está temporariamente indisponível. Você será redirecionado automaticamente."
+          showBackButton={false}
+        />
       </div>
     )
   }
 
-  const { attempt, answers } = result
+  const { attempt, answers } = resultData
   const performance = getPerformanceLevel(attempt.score)
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard/simulados/historico">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Histórico
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Resultado do Teste</h1>
-          <p className="text-gray-600">{attempt.test_title}</p>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4 max-w-4xl space-y-6">
+        <Button variant="outline" onClick={() => router.back()} className="mb-4">
+          <ChevronLeft className="h-4 w-4 mr-2" />
+          Voltar
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              <div>
+                <CardTitle className="text-2xl font-bold mb-1">{attempt.tests.title}</CardTitle>
+                <Badge variant="outline" className="text-sm mb-2 sm:mb-0">
+                  {attempt.tests.subject || "Geral"}
+                </Badge>
+              </div>
+              <span className={`px-3 py-1.5 rounded-full text-sm text-white font-medium ${performance.color}`}>
+                {performance.level} ({attempt.score.toFixed(1)}%)
+              </span>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              Realizado em: {new Date(attempt.completed_at).toLocaleString("pt-BR")}
+            </p>
+          </CardHeader>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{attempt.score.toFixed(1)}%</p>
+              <p className="text-sm text-gray-600">Pontuação</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{attempt.correct_answers}</p>
+              <p className="text-sm text-gray-600">Acertos</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <XCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{attempt.incorrect_answers}</p>
+              <p className="text-sm text-gray-600">Erros</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Clock className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+              <p className="text-xl font-bold">{formatTime(attempt.time_spent_seconds)}</p>
+              <p className="text-sm text-gray-600">Tempo Gasto</p>
+            </CardContent>
+          </Card>
         </div>
-      </div>
 
-      {/* Performance Overview */}
-      <Card className="border-blue-100">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-3">
-                <Award className="h-6 w-6 text-blue-600" />
-                {attempt.test_title}
-              </CardTitle>
-              <CardDescription>
-                Realizado em {formatDate(attempt.completed_at)} • {attempt.subject}
-              </CardDescription>
-            </div>
-            <div className={`px-4 py-2 rounded-lg ${performance.bg}`}>
-              <p className={`text-lg font-bold ${performance.color}`}>{attempt.score.toFixed(1)}%</p>
-              <p className={`text-sm ${performance.color}`}>{performance.level}</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <span className="text-sm text-gray-600">Acertos</span>
+        <Card>
+          <CardHeader>
+            <CardTitle>Detalhes das Respostas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {answers.map((ans, index) => (
+              <div key={ans.id || index} className="p-4 border rounded-lg bg-white">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-semibold text-md">
+                    Questão {index + 1}
+                    {ans.subject_area && (
+                      <Badge variant="secondary" className="ml-2">
+                        {ans.subject_area}
+                      </Badge>
+                    )}
+                  </h4>
+                  {ans.is_correct ? (
+                    <CheckCircle className="h-6 w-6 text-green-500" />
+                  ) : (
+                    <XCircle className="h-6 w-6 text-red-500" />
+                  )}
+                </div>
+                <p className="text-gray-700 mb-2 whitespace-pre-line">{ans.question_text}</p>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    <strong>Sua Resposta:</strong>{" "}
+                    <span className={ans.is_correct ? "text-green-700" : "text-red-700"}>
+                      {ans.user_answer || "Não respondida"}
+                    </span>
+                  </p>
+                  {!ans.is_correct && (
+                    <p>
+                      <strong>Resposta Correta:</strong> <span className="text-green-700">{ans.correct_answer}</span>
+                    </p>
+                  )}
+                  {/* Add explanation here if available in ans object */}
+                </div>
               </div>
-              <p className="text-2xl font-bold text-green-600">{attempt.correct_answers}</p>
-              <p className="text-sm text-gray-500">de {attempt.total_questions}</p>
-            </div>
+            ))}
+            {answers.length === 0 && <p className="text-gray-600">Detalhes das respostas não disponíveis.</p>}
+          </CardContent>
+        </Card>
 
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <XCircle className="h-5 w-5 text-red-500" />
-                <span className="text-sm text-gray-600">Erros</span>
-              </div>
-              <p className="text-2xl font-bold text-red-600">{attempt.incorrect_answers}</p>
-              <p className="text-sm text-gray-500">questões</p>
-            </div>
-
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <AlertCircle className="h-5 w-5 text-yellow-500" />
-                <span className="text-sm text-gray-600">Não Respondidas</span>
-              </div>
-              <p className="text-2xl font-bold text-yellow-600">{attempt.unanswered_questions}</p>
-              <p className="text-sm text-gray-500">questões</p>
-            </div>
-
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Clock className="h-5 w-5 text-blue-500" />
-                <span className="text-sm text-gray-600">Tempo Usado</span>
-              </div>
-              <p className="text-2xl font-bold text-blue-600">{formatTime(attempt.time_spent)}</p>
-              <p className="text-sm text-gray-500">de {formatTime(attempt.time_allowed)}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Rating Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Avalie este teste</CardTitle>
-          <CardDescription>Sua avaliação nos ajuda a melhorar a qualidade dos testes</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
+        <Card>
+          <CardHeader>
+            <CardTitle>Avalie este Simulado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
-                  onClick={() => handleRating(star)}
-                  disabled={submittingRating}
-                  className="p-1 hover:scale-110 transition-transform disabled:opacity-50"
+                  onClick={() => handleRatingChange(star)}
+                  disabled={ratingSubmitted && currentRating > 0}
+                  className="focus:outline-none transition-colors"
                 >
                   <Star
-                    className={`h-6 w-6 ${
-                      star <= rating ? "text-yellow-400 fill-current" : "text-gray-300 hover:text-yellow-200"
+                    className={`h-7 w-7 ${
+                      star <= currentRating ? "text-yellow-400 fill-yellow-400" : "text-gray-300 hover:text-yellow-300"
                     }`}
                   />
                 </button>
               ))}
+              {ratingSubmitted && currentRating > 0 && (
+                <span className="text-sm text-green-600 ml-2">Avaliação registrada!</span>
+              )}
             </div>
-            {rating > 0 && (
-              <p className="text-sm text-gray-600">
-                Você avaliou este teste com {rating} estrela{rating > 1 ? "s" : ""}
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Detailed Answers */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Revisão das Questões</CardTitle>
-          <CardDescription>Veja suas respostas e as correções detalhadas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {answers.map((answer, index) => (
-              <div key={answer.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        answer.is_correct
-                          ? "bg-green-100 text-green-700"
-                          : answer.user_answer
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {index + 1}
-                    </div>
-                    <div>
-                      <Badge variant="outline" className="text-xs">
-                        {answer.subject_area} • {answer.difficulty}
-                      </Badge>
-                      {answer.time_spent > 0 && (
-                        <p className="text-xs text-gray-500 mt-1">Tempo: {formatTime(answer.time_spent)}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {answer.is_correct ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : answer.user_answer ? (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 text-yellow-500" />
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="font-medium mb-2">Questão:</h4>
-                    <p className="text-gray-700">{answer.question_text}</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h5 className="font-medium text-sm mb-1">Sua resposta:</h5>
-                      <p
-                        className={`p-2 rounded text-sm ${
-                          answer.user_answer
-                            ? answer.is_correct
-                              ? "bg-green-50 text-green-700"
-                              : "bg-red-50 text-red-700"
-                            : "bg-yellow-50 text-yellow-700"
-                        }`}
-                      >
-                        {answer.user_answer || "Não respondida"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <h5 className="font-medium text-sm mb-1">Resposta correta:</h5>
-                      <p className="p-2 rounded text-sm bg-green-50 text-green-700">{answer.correct_answer}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Actions */}
-      <div className="flex gap-4">
-        <Link href="/dashboard/simulados">
-          <Button variant="outline">Fazer Outro Teste</Button>
-        </Link>
-        <Link href="/dashboard/simulados/historico">
-          <Button>Ver Histórico Completo</Button>
-        </Link>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

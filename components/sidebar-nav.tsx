@@ -48,6 +48,7 @@ const navItems = [
     title: "Simulados",
     href: "/dashboard/simulados",
     icon: BarChart2,
+    maintenance: true,
   },
   {
     title: "Sobre",
@@ -118,6 +119,11 @@ export function SidebarNav() {
                   )}
                 >
                   {item.title}
+                  {item.maintenance && (
+                    <span className="ml-2 text-xs py-0.5 px-1.5 bg-yellow-100 text-yellow-800 rounded-sm">
+                      Manutenção
+                    </span>
+                  )}
                 </span>
               </Link>
             ))}
@@ -149,7 +155,14 @@ export function SidebarNav() {
                 onClick={() => setIsOpen(false)}
               >
                 <item.icon className="mr-3 h-5 w-5" />
-                <span>{item.title}</span>
+                <span>
+                  {item.title}
+                  {item.maintenance && (
+                    <span className="ml-2 text-xs py-0.5 px-1.5 bg-yellow-100 text-yellow-800 rounded-sm">
+                      Manutenção
+                    </span>
+                  )}
+                </span>
               </Link>
             ))}
           </nav>

@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { ChevronLeft, ChevronRight, Flag, Clock } from "lucide-react"
 import { TestResults } from "@/components/test-results"
 import { useUserData } from "@/hooks/use-user-data"
+import { MaintenanceMessage } from "@/components/maintenance-message"
 
 // Mock test data with questions
 const mockTests = {
@@ -74,7 +75,7 @@ const mockTests = {
         question: "Um corpo em movimento retilíneo uniforme percorre 120 metros em 8 segundos. Sua velocidade é:",
         options: ["10 m/s", "12 m/s", "15 m/s", "18 m/s", "20 m/s"],
         correctAnswer: 2,
-        explanation: "Velocidade = distância/tempo = 120m/8s = 15 m/s",
+        explanation: "Velocidade = Distância/tempo = 120m/8s = 15 m/s",
       },
     ],
   },
@@ -157,8 +158,11 @@ export default function TestPage() {
 
   useEffect(() => {
     if (!test) {
-      router.push("/dashboard/simulados")
-      return
+      const timer = setTimeout(() => {
+        router.push("/dashboard/simulados")
+      }, 3000)
+
+      return () => clearTimeout(timer)
     }
 
     // Initialize answers array
@@ -284,14 +288,12 @@ export default function TestPage() {
 
   if (!test) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <h2 className="text-xl font-semibold mb-4">Teste não encontrado</h2>
-            <p className="text-gray-600 mb-4">O teste solicitado não foi encontrado.</p>
-            <Button onClick={() => router.push("/dashboard/simulados")}>Voltar para Simulados</Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <MaintenanceMessage
+          title="Redirecionando..."
+          message="Esta página está temporariamente indisponível. Você será redirecionado automaticamente."
+          showBackButton={false}
+        />
       </div>
     )
   }

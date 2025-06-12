@@ -9,6 +9,7 @@ import { Trophy, Clock, Target, TrendingUp, Calendar, RefreshCw } from "lucide-r
 import Link from "next/link"
 import { useUserData } from "@/hooks/use-user-data"
 import { useToast } from "@/hooks/use-toast"
+import { MaintenanceMessage } from "@/components/maintenance-message"
 
 interface TestAttempt {
   id: string
@@ -218,6 +219,21 @@ export default function TestHistoryPage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <MaintenanceMessage
+          title="Histórico de Simulados em Manutenção"
+          message="O histórico de simulados está temporariamente indisponível enquanto implementamos melhorias no sistema. Seus dados anteriores serão preservados e estarão disponíveis quando o serviço retornar."
+          estimatedReturn="Previsão de retorno: 15 de julho de 2025"
+          showBackButton={true}
+          backUrl="/dashboard/simulados"
+          backText="Voltar para Simulados"
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       {/* Header */}
@@ -392,23 +408,6 @@ export default function TestHistoryPage() {
             <Link href="/dashboard/simulados">
               <Button>Fazer um Simulado</Button>
             </Link>
-          </CardContent>
-        </Card>
-      )}
-
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="text-red-600">⚠️</div>
-              <div>
-                <h3 className="font-medium text-red-900">Erro ao carregar dados</h3>
-                <p className="text-red-700">{error}</p>
-                <Button variant="outline" size="sm" onClick={() => fetchTestHistory(true)} className="mt-2">
-                  Tentar Novamente
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
