@@ -1,4 +1,6 @@
 "use client"
+
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { MaintenanceMessage } from "@/components/maintenance-message"
 
@@ -152,11 +154,34 @@ const getSubjectIcon = (subject: string) => {
 }
 
 export default function SimuladosPage() {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedSubject, setSelectedSubject] = useState("todos")
+  const [sortBy, setSortBy] = useState("popular")
   const router = useRouter()
+
+  const filteredTests = practiceTests
+    .filter((test) => {
+      const matchesSearch =
+        test.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        test.subject.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesSubject = selectedSubject === "todos" || test.category === selectedSubject
+      return matchesSearch && matchesSubject
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "popular":
+          return b.participants - a.participants
+        case "rating":
+          return b.rating - a.rating
+        case "recent":
+          return b.id - a.id
+        default:
+          return 0
+      }
+    })
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Maintenance Message */}
       <MaintenanceMessage
         title="Simulados em Manutenção"
         message="Estamos trabalhando para melhorar a experiência dos simulados com novas funcionalidades e conteúdos. Esta seção está temporariamente indisponível enquanto implementamos estas melhorias."

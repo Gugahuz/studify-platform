@@ -158,11 +158,8 @@ export default function TestPage() {
 
   useEffect(() => {
     if (!test) {
-      const timer = setTimeout(() => {
-        router.push("/dashboard/simulados")
-      }, 3000)
-
-      return () => clearTimeout(timer)
+      router.push("/dashboard/simulados")
+      return
     }
 
     // Initialize answers array
@@ -286,9 +283,17 @@ export default function TestPage() {
     setUserRating(0)
   }
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      router.push("/dashboard/simulados")
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [router])
+
   if (!test) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
         <MaintenanceMessage
           title="Redirecionando..."
           message="Esta página está temporariamente indisponível. Você será redirecionado automaticamente."

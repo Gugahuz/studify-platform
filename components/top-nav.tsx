@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Bell, LogOut, Loader2, User, ChevronDown } from "lucide-react"
+import { Bell, LogOut, Loader2, User, ChevronDown, Menu, X } from "lucide-react"
 import { signOut } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useUserData } from "@/hooks/use-user-data"
@@ -13,6 +13,7 @@ import Link from "next/link"
 export function TopNav() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { userProfile, userEmail, refreshUserData } = useUserData()
   const router = useRouter()
   const { toast } = useToast()
@@ -85,6 +86,10 @@ export function TopNav() {
     setIsDropdownOpen(!isDropdownOpen)
   }
 
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen)
+  }
+
   // Add this after the toggleDropdown function
   useEffect(() => {
     if (isDropdownOpen) {
@@ -103,7 +108,12 @@ export function TopNav() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-studify-gray/20 bg-studify-white">
       <div className="flex h-16 items-center justify-between w-full px-4">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
+          {/* Botão do menu mobile - agora ao lado esquerdo do logo */}
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileMenu}>
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </Button>
+
           <Link
             href="/dashboard"
             className="text-xl font-bold text-studify-green hover:text-studify-green/80 transition-colors"
@@ -190,6 +200,254 @@ export function TopNav() {
 
       {/* Overlay to close dropdown when clicking outside */}
       {isDropdownOpen && <div className="fixed inset-0 z-[90]" onClick={() => setIsDropdownOpen(false)} />}
+
+      {/* Mobile menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[95]">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={toggleMobileMenu}></div>
+          <div className="absolute left-0 top-0 h-full w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out">
+            <SidebarContent onClose={toggleMobileMenu} />
+          </div>
+        </div>
+      )}
     </header>
   )
+}
+
+// Componente para o conteúdo da sidebar mobile
+function SidebarContent({ onClose }: { onClose: () => void }) {
+  const pathname = useRouter().pathname
+  const navItems = [
+    {
+      title: "Dashboard",
+      href: "/dashboard",
+      icon: "home",
+    },
+    {
+      title: "Matérias",
+      href: "/dashboard/materias",
+      icon: "book",
+    },
+    {
+      title: "Cronograma",
+      href: "/dashboard/cronograma",
+      icon: "calendar",
+    },
+    {
+      title: "Assistente",
+      href: "/dashboard/assistente",
+      icon: "message-square",
+    },
+    {
+      title: "Resumos",
+      href: "/dashboard/resumos",
+      icon: "file-text",
+    },
+    {
+      title: "Simulados",
+      href: "/dashboard/simulados",
+      icon: "bar-chart-2",
+    },
+    {
+      title: "Sobre",
+      href: "/dashboard/sobre",
+      icon: "info",
+    },
+    {
+      title: "Assinatura",
+      href: "/dashboard/assinatura",
+      icon: "crown",
+    },
+  ]
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-8">
+        <span className="studify-logo text-studify-green text-3xl">studify</span>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X size={20} />
+        </Button>
+      </div>
+
+      <nav className="space-y-1">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex items-center px-3 py-2 text-studify-gray rounded-md hover:bg-studify-lightgreen/10 hover:text-studify-green group ${
+              pathname === item.href ? "bg-studify-lightgreen/10 text-studify-green" : ""
+            }`}
+            onClick={onClose}
+          >
+            <span className="mr-3">{getIcon(item.icon)}</span>
+            <span>{item.title}</span>
+          </Link>
+        ))}
+      </nav>
+    </div>
+  )
+}
+
+// Função auxiliar para obter o ícone correto
+function getIcon(name: string) {
+  switch (name) {
+    case "home":
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect width="7" height="9" x="3" y="3" rx="1" />
+          <rect width="7" height="5" x="14" y="3" rx="1" />
+          <rect width="7" height="9" x="14" y="12" rx="1" />
+          <rect width="7" height="5" x="3" y="16" rx="1" />
+        </svg>
+      )
+    case "book":
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+        </svg>
+      )
+    case "calendar":
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+          <line x1="16" x2="16" y1="2" y2="6" />
+          <line x1="8" x2="8" y1="2" y2="6" />
+          <line x1="3" x2="21" y1="10" y2="10" />
+        </svg>
+      )
+    case "message-square":
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      )
+    case "file-text":
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" x2="8" y1="13" y2="13" />
+          <line x1="16" x2="8" y1="17" y2="17" />
+          <line x1="10" x2="8" y1="9" y2="9" />
+        </svg>
+      )
+    case "bar-chart-2":
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="18" x2="18" y1="20" y2="10" />
+          <line x1="12" x2="12" y1="20" y2="4" />
+          <line x1="6" x2="6" y1="20" y2="14" />
+        </svg>
+      )
+    case "info":
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
+      )
+    case "crown":
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+        </svg>
+      )
+    default:
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+        </svg>
+      )
+  }
 }

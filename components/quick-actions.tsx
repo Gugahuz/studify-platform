@@ -22,8 +22,8 @@ export function QuickActions() {
       title: "Iniciar simulado",
       icon: BarChart2,
       href: "/dashboard/simulados",
-      available: true, // Changed from false to true so it's clickable
-      maintenance: true, // Added this new property
+      available: true, // Mantido como true para ser clicável
+      maintenance: true, // Adicionado flag de manutenção
     },
     {
       title: "Enviar questão",
@@ -51,12 +51,12 @@ export function QuickActions() {
 
             if (action.available) {
               if (action.maintenance) {
-                // Maintenance mode styling
+                // Estilo especial para itens em manutenção
                 return (
                   <Link key={action.title} href={action.href}>
                     <Button
                       variant="outline"
-                      className={`flex flex-col h-20 w-full py-3 px-3 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200 text-center justify-center items-center transition-all duration-200 hover:scale-105 hover:shadow-md`}
+                      className={`flex flex-col h-20 w-full py-3 px-3 bg-studify-lightgreen/10 text-studify-green border-studify-green/20 text-center justify-center items-center transition-all duration-200 hover:scale-105 hover:shadow-md`}
                     >
                       <action.icon className="h-5 w-5 mb-1.5 flex-shrink-0" />
                       <span className="text-xs font-medium leading-tight text-center">{action.title}</span>

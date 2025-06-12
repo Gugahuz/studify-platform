@@ -1,95 +1,97 @@
--- Enable UUID extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Create tests table to store information about each test
-CREATE TABLE IF NOT EXISTS tests (
-    id INT PRIMARY KEY, -- Using the ID from mock data (e.g., 1, 2, 3)
-    title TEXT NOT NULL,
-    subject TEXT,
-    description TEXT,
-    duration_minutes INT, -- Original duration from mock data
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create test_attempts table to store user's attempts
-CREATE TABLE IF NOT EXISTS test_attempts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    test_id INT REFERENCES tests(id) ON DELETE SET NULL, -- Link to the specific test
-    score FLOAT NOT NULL, -- Percentage score, e.g., 85.5
-    total_questions INT NOT NULL,
-    correct_answers INT NOT NULL,
-    incorrect_answers INT NOT NULL,
-    unanswered_questions INT DEFAULT 0,
-    time_spent_seconds INT, -- Time spent by the user in seconds
-    time_allowed_seconds INT, -- Total time allowed for the test in seconds
-    completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    user_rating INT CHECK (user_rating >= 1 AND user_rating <= 5), -- Optional rating (1-5 stars)
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create test_answers table for detailed storage of each answer in an attempt
-CREATE TABLE IF NOT EXISTS test_answers (
-    id SERIAL PRIMARY KEY,
-    attempt_id UUID REFERENCES test_attempts(id) ON DELETE CASCADE NOT NULL,
-    question_id INT, -- Identifier for the question within its test (e.g., 1, 2, ...)
-    question_text TEXT, -- The actual text of the question
-    user_answer TEXT, -- The answer text selected/provided by the user
-    correct_answer TEXT, -- The correct answer text
-    is_correct BOOLEAN,
-    time_spent_on_question_seconds INT, -- Optional: time spent on this specific question
-    subject_area TEXT, -- e.g., 'Português', 'Matemática'
-    difficulty TEXT, -- e.g., 'Fácil', 'Médio', 'Difícil'
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Add indexes for performance optimization
-CREATE INDEX IF NOT EXISTS idx_test_attempts_user_id ON test_attempts(user_id);
-CREATE INDEX IF NOT EXISTS idx_test_attempts_test_id ON test_attempts(test_id);
-CREATE INDEX IF NOT EXISTS idx_test_answers_attempt_id ON test_answers(attempt_id);
-
--- Function to update 'updated_at' column
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
-RETURNS TRIGGER AS $$
+-- Function to create test tables if they don't exist
+CREATE OR REPLACE FUNCTION create_test_tables_if_not_exist()
+RETURNS void AS $$
 BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
+  -- Create test_attempts table if it doesn't exist
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'test_attempts') THEN
+    CREATE TABLE public.test_attempts (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+      test_id INTEGER NOT NULL,
+      test_title TEXT NOT NULL,
+      test_subject TEXT NOT NULL, -- Using test_subject instead of subject
+      score DECIMAL(5,2) NOT NULL,
+      total_questions INTEGER NOT NULL,
+      correct_answers INTEGER NOT NULL,
+      incorrect_answers INTEGER NOT NULL,
+      unanswered_questions INTEGER NOT NULL DEFAULT 0,
+      time_spent INTEGER NOT NULL, -- in seconds
+      time_allowed INTEGER NOT NULL, -- in seconds
+      completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      user_rating INTEGER, -- 1-5 star rating
+      CONSTRAINT score_range CHECK (score >= 0 AND score <= 100)
+    );
+    
+    -- Create indexes
+    CREATE INDEX idx_test_attempts_user_id ON public.test_attempts(user_id);
+    CREATE INDEX idx_test_attempts_completed_at ON public.test_attempts(completed_at DESC);
+    
+    -- Enable RLS
+    ALTER TABLE public.test_attempts ENABLE ROW LEVEL SECURITY;
+    
+    -- Create RLS policies
+    CREATE POLICY "Users can view their own test attempts" ON public.test_attempts
+      FOR SELECT USING (auth.uid() = user_id);
+    
+    CREATE POLICY "Users can insert their own test attempts" ON public.test_attempts
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  -- Create test_answers table if it doesn't exist
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'test_answers') THEN
+    CREATE TABLE public.test_answers (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      attempt_id UUID NOT NULL REFERENCES public.test_attempts(id) ON DELETE CASCADE,
+      question_id INTEGER NOT NULL,
+      question_text TEXT NOT NULL,
+      user_answer TEXT,
+      correct_answer TEXT NOT NULL,
+      is_correct BOOLEAN NOT NULL,
+      time_spent INTEGER DEFAULT 0, -- in seconds
+      subject_area TEXT,
+      difficulty TEXT
+    );
+    
+    -- Create index
+    CREATE INDEX idx_test_answers_attempt_id ON public.test_answers(attempt_id);
+    
+    -- Enable RLS
+    ALTER TABLE public.test_answers ENABLE ROW LEVEL SECURITY;
+    
+    -- Create RLS policies
+    CREATE POLICY "Users can view their own test answers" ON public.test_answers
+      FOR SELECT USING (
+        EXISTS (
+          SELECT 1 FROM public.test_attempts ta 
+          WHERE ta.id = test_answers.attempt_id 
+          AND ta.user_id = auth.uid()
+        )
+      );
+    
+    CREATE POLICY "Users can insert their own test answers" ON public.test_answers
+      FOR INSERT WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.test_attempts ta 
+          WHERE ta.id = test_answers.attempt_id 
+          AND ta.user_id = auth.uid()
+        )
+      );
+  END IF;
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers to automatically update 'updated_at' on table updates
-DO $$
+-- Function to get column names of a table
+CREATE OR REPLACE FUNCTION get_table_columns(table_name text)
+RETURNS TABLE (column_name text, data_type text) AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_timestamp_tests') THEN
-    CREATE TRIGGER set_timestamp_tests
-    BEFORE UPDATE ON tests
-    FOR EACH ROW
-    EXECUTE FUNCTION trigger_set_timestamp();
-  END IF;
-END $$;
+  RETURN QUERY
+  SELECT c.column_name::text, c.data_type::text
+  FROM information_schema.columns c
+  WHERE c.table_schema = 'public'
+  AND c.table_name = table_name
+  ORDER BY c.ordinal_position;
+END;
+$$ LANGUAGE plpgsql;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_timestamp_test_attempts') THEN
-    CREATE TRIGGER set_timestamp_test_attempts
-    BEFORE UPDATE ON test_attempts
-    FOR EACH ROW
-    EXECUTE FUNCTION trigger_set_timestamp();
-  END IF;
-END $$;
-
--- Note: No trigger for test_answers as they are typically immutable once created.
-
-COMMENT ON TABLE tests IS 'Stores definitions of available tests/simulados.';
-COMMENT ON COLUMN tests.id IS 'Client-side defined ID for the test (e.g., from mock data).';
-COMMENT ON COLUMN tests.duration_minutes IS 'Official duration of the test in minutes.';
-
-COMMENT ON TABLE test_attempts IS 'Records each attempt a user makes on a test.';
-COMMENT ON COLUMN test_attempts.score IS 'Overall score as a percentage (0-100).';
-COMMENT ON COLUMN test_attempts.time_spent_seconds IS 'Actual time user spent on the test.';
-COMMENT ON COLUMN test_attempts.time_allowed_seconds IS 'Maximum time allowed for the test.';
-
-COMMENT ON TABLE test_answers IS 'Stores individual answers for each question within a test attempt.';
-COMMENT ON COLUMN test_answers.question_id IS 'Identifier for the question within the original test structure.';
+-- Execute the function to ensure tables exist
+SELECT create_test_tables_if_not_exist();

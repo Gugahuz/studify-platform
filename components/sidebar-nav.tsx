@@ -120,7 +120,7 @@ export function SidebarNav() {
                 >
                   {item.title}
                   {item.maintenance && (
-                    <span className="ml-2 text-xs py-0.5 px-1.5 bg-yellow-100 text-yellow-800 rounded-sm">
+                    <span className="ml-2 text-xs py-0.5 px-1.5 bg-studify-lightgreen/20 text-studify-green rounded-sm">
                       Manutenção
                     </span>
                   )}
@@ -158,7 +158,7 @@ export function SidebarNav() {
                 <span>
                   {item.title}
                   {item.maintenance && (
-                    <span className="ml-2 text-xs py-0.5 px-1.5 bg-yellow-100 text-yellow-800 rounded-sm">
+                    <span className="ml-2 text-xs py-0.5 px-1.5 bg-studify-lightgreen/20 text-studify-green rounded-sm">
                       Manutenção
                     </span>
                   )}

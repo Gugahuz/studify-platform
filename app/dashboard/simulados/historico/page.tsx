@@ -225,10 +225,9 @@ export default function TestHistoryPage() {
         <MaintenanceMessage
           title="Histórico de Simulados em Manutenção"
           message="O histórico de simulados está temporariamente indisponível enquanto implementamos melhorias no sistema. Seus dados anteriores serão preservados e estarão disponíveis quando o serviço retornar."
-          estimatedReturn="Previsão de retorno: 15 de julho de 2025"
           showBackButton={true}
-          backUrl="/dashboard/simulados"
-          backText="Voltar para Simulados"
+          backUrl="/dashboard"
+          backText="Voltar ao Dashboard"
         />
       </div>
     )

@@ -14,32 +14,18 @@ export async function GET(request: NextRequest, { params }: { params: { attemptI
       return NextResponse.json({ success: false, error: "Attempt ID is required" }, { status: 400 })
     }
 
-    console.log(`📊 [API] Fetching test result for attempt: ${attemptId}`)
+    console.log("📊 Fetching test result for attempt:", attemptId)
 
-    // Get test attempt and join with tests table for test details
+    // Get test attempt
     const { data: attempt, error: attemptError } = await supabase
       .from("test_attempts")
-      .select(
-        `
-          *,
-          tests (
-            id,
-            title,
-            subject,
-            description,
-            duration_minutes
-          )
-        `,
-      )
+      .select("*")
       .eq("id", attemptId)
       .single()
 
     if (attemptError) {
-      console.error("❌ [API] Error fetching test attempt:", attemptError)
-      return NextResponse.json(
-        { success: false, error: `Failed to fetch test result: ${attemptError.message}` },
-        { status: 500 },
-      )
+      console.error("❌ Error fetching test attempt:", attemptError)
+      return NextResponse.json({ success: false, error: "Failed to fetch test result" }, { status: 500 })
     }
 
     if (!attempt) {
@@ -51,25 +37,25 @@ export async function GET(request: NextRequest, { params }: { params: { attemptI
       .from("test_answers")
       .select("*")
       .eq("attempt_id", attemptId)
-      .order("question_id", { ascending: true }) // Assuming question_id helps in ordering
+      .order("question_id", { ascending: true })
 
     if (answersError) {
-      console.error("❌ [API] Error fetching test answers:", answersError)
-      // Non-fatal, can return attempt without answers
+      console.error("❌ Error fetching test answers:", answersError)
+      return NextResponse.json({ success: false, error: "Failed to fetch test answers" }, { status: 500 })
     }
 
-    console.log("✅ [API] Test result fetched successfully for attempt:", attemptId)
+    console.log("✅ Test result fetched successfully")
 
     return NextResponse.json({
       success: true,
       data: {
-        attempt, // This now includes test details via the 'tests' object
+        attempt,
         answers: answers || [],
       },
     })
   } catch (error: any) {
-    console.error("❌ [API] Error in test-results/[attemptId] GET:", error)
-    return NextResponse.json({ success: false, error: `Internal server error: ${error.message}` }, { status: 500 })
+    console.error("❌ Error in test-results/[attemptId] GET:", error)
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -84,43 +70,33 @@ export async function PATCH(request: NextRequest, { params }: { params: { attemp
       return NextResponse.json({ success: false, error: "Attempt ID is required" }, { status: 400 })
     }
 
-    if (user_rating === undefined || user_rating === null) {
+    if (user_rating === undefined) {
       return NextResponse.json({ success: false, error: "User rating is required" }, { status: 400 })
     }
 
-    const rating = Number(user_rating)
-    if (isNaN(rating) || rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { success: false, error: "Invalid user rating. Must be between 1 and 5." },
-        { status: 400 },
-      )
-    }
+    console.log("📝 Updating test rating for attempt:", attemptId)
 
-    console.log(`📝 [API] Updating test rating for attempt: ${attemptId} to ${rating}`)
-
+    // Update test attempt
     const { data, error } = await supabase
       .from("test_attempts")
-      .update({ user_rating: rating })
+      .update({ user_rating })
       .eq("id", attemptId)
       .select()
       .single()
 
     if (error) {
-      console.error("❌ [API] Error updating test rating:", error)
-      return NextResponse.json(
-        { success: false, error: `Failed to update test rating: ${error.message}` },
-        { status: 500 },
-      )
+      console.error("❌ Error updating test rating:", error)
+      return NextResponse.json({ success: false, error: "Failed to update test rating" }, { status: 500 })
     }
 
-    console.log("✅ [API] Test rating updated successfully for attempt:", attemptId)
+    console.log("✅ Test rating updated successfully")
 
     return NextResponse.json({
       success: true,
       data,
     })
   } catch (error: any) {
-    console.error("❌ [API] Error in test-results/[attemptId] PATCH:", error)
-    return NextResponse.json({ success: false, error: `Internal server error: ${error.message}` }, { status: 500 })
+    console.error("❌ Error in test-results/[attemptId] PATCH:", error)
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
   }
 }
