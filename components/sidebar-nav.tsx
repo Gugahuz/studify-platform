@@ -48,7 +48,6 @@ const navItems = [
     title: "Simulados",
     href: "/dashboard/simulados",
     icon: BarChart2,
-    maintenance: true,
   },
   {
     title: "Sobre",
