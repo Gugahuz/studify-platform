@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
 import { ToastProvider } from "@/components/toast-provider"
+import { DatabaseInitializer } from "@/components/database-initializer"
 
 export const metadata: Metadata = {
   title: "Studify - Assistente de Estudos",
@@ -17,6 +18,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
+        <DatabaseInitializer />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

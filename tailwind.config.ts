@@ -26,7 +26,7 @@ const config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: "hsl(var(--primary))", // Will be studify-green
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -42,7 +42,7 @@ const config = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
+          DEFAULT: "hsl(var(--accent))", // Will be studify-lightgreen or similar
           foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
@@ -55,8 +55,8 @@ const config = {
         },
         studify: {
           white: "#FEFFFE",
-          green: "#2D7A18",
-          lightgreen: "#58CC02",
+          green: "#2D7A18", // Main green
+          lightgreen: "#58CC02", // Lighter green for accents/hovers
           gray: "#6A6A6A",
         },
       },
