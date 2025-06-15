@@ -35,6 +35,7 @@ import type {
   PrebuiltDeck as PrebuiltDeckType,
 } from "@/types/flashcards"
 import { cn } from "@/lib/utils"
+import ComprehensiveSubjectSelector from "@/components/flashcard/comprehensive-subject-selector"
 
 interface StudySession {
   currentIndex: number
@@ -117,6 +118,19 @@ export default function FlashcardsPage() {
     setIsLoadingSubjects(true)
     try {
       const response = await fetch("/api/flashcards/subjects")
+
+      if (!response.ok) {
+        const responseText = await response.text() // Tenta ler a resposta como texto
+        console.error("Erro da API - Status:", response.status)
+        console.error("Erro da API - Resposta Bruta (HTML/Texto):", responseText) // Loga o HTML/texto
+        setError(
+          `Falha ao buscar matérias. Status: ${response.status}. Início da Resposta: ${responseText.substring(0, 200)}...`, // Mostra os primeiros 200 chars
+        )
+        setSubjects([])
+        setIsLoadingSubjects(false) // Garante que o estado de loading seja resetado
+        return // Interrompe a execução aqui
+      }
+
       const data = await response.json()
       const allSubjects: SubjectType[] = []
       if (data && typeof data === "object") {
@@ -161,9 +175,21 @@ export default function FlashcardsPage() {
         setFlashcards(data.flashcards)
         setSuccess(`${data.flashcards.length} flashcards gerados!`)
         setShowViewer(true)
-        const deckSource =
-          prebuiltDecks.find((d) => d.id === options.deckId) || subjects.find((s) => s.id === options.subjectId)
-        setCurrentDeckName(deckSource?.name || "Flashcards Personalizados")
+
+        // Determine deck name based on method
+        let deckName = "Flashcards Personalizados"
+        if (options.deckId) {
+          const deck = prebuiltDecks.find((d) => d.id === options.deckId)
+          deckName = deck?.name || "Deck Pré-construído"
+        } else if (options.subjectId && options.topicIds) {
+          // For comprehensive subjects, create a descriptive name
+          deckName = `Flashcards - ${options.topicIds.length} tópicos`
+        } else if (options.subjectId) {
+          const subject = subjects.find((s) => s.id === options.subjectId)
+          deckName = subject?.name || "Matéria Selecionada"
+        }
+
+        setCurrentDeckName(deckName)
       } else {
         setError(data.error || "Nenhum flashcard gerado. Tente ajustar os parâmetros.")
         if (data.flashcards && data.flashcards.length > 0) {
@@ -260,7 +286,7 @@ export default function FlashcardsPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-studify-green">Sistema de Flashcards</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-studify-green">Flashcards</h1>
             <p className="text-studify-gray">Crie, estude e domine qualquer assunto.</p>
           </div>
         </div>
@@ -493,116 +519,25 @@ export default function FlashcardsPage() {
           <Card className="shadow-lg border-gray-200 bg-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-studify-green">
-                <Library className="h-6 w-6" /> Por Matéria
+                <Library className="h-6 w-6" /> Por Matéria (Avançado)
               </CardTitle>
               <CardDescription className="text-studify-gray">
-                Selecione uma matéria e um tópico para gerar flashcards.
+                Selecione matérias e tópicos específicos para criar decks personalizados com distribuição proporcional.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {isLoadingSubjects ? (
-                <div className="flex items-center justify-center py-10 text-studify-gray">
-                  <Loader2 className="h-8 w-8 animate-spin mr-3 text-studify-green" /> Carregando matérias...
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label htmlFor="subject" className="font-medium text-studify-gray">
-                      Matéria
-                    </label>
-                    <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
-                      <SelectTrigger
-                        id="subject"
-                        className="mt-1 border-gray-300 focus:border-studify-green focus:ring-studify-green"
-                      >
-                        <SelectValue placeholder="Selecione uma matéria" />{" "}
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {subjects.map((subject) => (
-                          <SelectItem key={subject.id} value={subject.id}>
-                            {subject.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {selectedSubjectId && topics.length > 0 && (
-                    <div>
-                      <label htmlFor="topic" className="font-medium text-studify-gray">
-                        Tópico (Opcional)
-                      </label>
-                      <Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
-                        <SelectTrigger
-                          id="topic"
-                          className="mt-1 border-gray-300 focus:border-studify-green focus:ring-studify-green"
-                        >
-                          <SelectValue placeholder="Todos os tópicos da matéria" />{" "}
-                          <ChevronDown className="h-4 w-4 opacity-50" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos os tópicos da matéria</SelectItem>
-                          {topics.map((topic) => (
-                            <SelectItem key={topic.id} value={topic.id}>
-                              {topic.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="num-cards-db" className="font-medium text-studify-gray">
-                        Número de Flashcards (5-30)
-                      </label>
-                      <Input
-                        id="num-cards-db"
-                        type="number"
-                        min="5"
-                        max="30"
-                        value={numberOfCards}
-                        onChange={(e) =>
-                          setNumberOfCards(Math.max(5, Math.min(30, Number.parseInt(e.target.value) || 10)))
-                        }
-                        className="mt-1 border-gray-300 focus:border-studify-green focus:ring-studify-green"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="difficulty-db" className="font-medium text-studify-gray">
-                        Nível de Dificuldade
-                      </label>
-                      <Select value={difficulty} onValueChange={setDifficulty}>
-                        <SelectTrigger
-                          id="difficulty-db"
-                          className="mt-1 border-gray-300 focus:border-studify-green focus:ring-studify-green"
-                        >
-                          <SelectValue /> <ChevronDown className="h-4 w-4 opacity-50" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="easy">Fácil</SelectItem>
-                          <SelectItem value="medium">Médio</SelectItem>
-                          <SelectItem value="hard">Difícil</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={handleDatabaseGeneration}
-                      disabled={isGenerating || !selectedSubjectId}
-                      className="bg-studify-green hover:bg-studify-lightgreen text-studify-white hover:text-studify-green"
-                    >
-                      {isGenerating ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Play className="h-4 w-4 mr-2" />
-                      )}
-                      Gerar Flashcards
-                    </Button>
-                  </div>
-                </>
-              )}
+            <CardContent>
+              <ComprehensiveSubjectSelector
+                onGenerate={(params) => {
+                  generateFlashcardsAPI("database", {
+                    subjectId: params.subjectId,
+                    topicIds: params.topicIds,
+                    topicEstimatedCards: params.topicEstimatedCards,
+                    numberOfFlashcards: params.numberOfFlashcards,
+                    difficulty: params.difficulty,
+                  })
+                }}
+                isGenerating={isGenerating}
+              />
             </CardContent>
           </Card>
         </TabsContent>

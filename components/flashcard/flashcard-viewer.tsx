@@ -61,25 +61,62 @@ export function FlashcardViewer({
   }, [startTime, session.isComplete])
 
   useEffect(() => {
-    setAnswerRevealed(false) // Reset when card changes
+    setAnswerRevealed(false)
     cardRef.current?.setFlipState(false)
   }, [session.currentIndex])
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (session.isComplete) return
+
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault()
+          handlePrevious()
+          break
+        case "ArrowRight":
+          e.preventDefault()
+          handleNext()
+          break
+        case " ":
+          e.preventDefault()
+          if (!answerRevealed) {
+            handleRevealAnswer()
+          } else {
+            cardRef.current?.flipCard()
+          }
+          break
+        case "Enter":
+          e.preventDefault()
+          cardRef.current?.flipCard()
+          break
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyPress)
+    return () => window.removeEventListener("keydown", handleKeyPress)
+  }, [answerRevealed, session.isComplete, session.currentIndex])
+
   if (!flashcards || flashcards.length === 0) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-6 bg-studify-white min-h-screen">
         <div className="max-w-2xl mx-auto text-center py-12 space-y-4">
           {onClose && (
             <div className="flex justify-start mb-4">
-              <Button onClick={onClose} variant="outline">
+              <Button
+                onClick={onClose}
+                variant="outline"
+                className="border-studify-gray text-studify-gray hover:bg-gray-100"
+              >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar ao Menu
               </Button>
             </div>
           )}
           <Target className="h-16 w-16 text-gray-400 mx-auto" />
-          <h3 className="text-xl font-semibold text-gray-800">Nenhum flashcard para exibir</h3>
-          <p className="text-gray-600">
+          <h3 className="text-xl font-semibold text-studify-gray">Nenhum flashcard para exibir</h3>
+          <p className="text-studify-gray">
             Parece que este deck está vazio ou houve um problema ao carregar os flashcards.
           </p>
         </div>
@@ -113,7 +150,6 @@ export function FlashcardViewer({
         currentIndex: prev.currentIndex + 1,
         correctAnswers: newCorrectAnswers,
       }))
-      // setAnswerRevealed(false) will be handled by useEffect on session.currentIndex change
     }
   }
 
@@ -127,7 +163,6 @@ export function FlashcardViewer({
   }
 
   const handleNext = () => {
-    // Allow skipping if answer not revealed
     if (session.currentIndex < session.totalCards - 1) {
       setSession((prev) => ({
         ...prev,
@@ -145,7 +180,7 @@ export function FlashcardViewer({
     })
     setAnswerRevealed(false)
     cardRef.current?.setFlipState(false)
-    setStudyTime(0) // Reset timer visually, startTime will handle actual restart
+    setStudyTime(0)
   }
 
   const formatTime = (seconds: number) => {
@@ -159,48 +194,52 @@ export function FlashcardViewer({
     const performanceMessage = accuracy >= 80 ? "Excelente!" : accuracy >= 60 ? "Bom trabalho!" : "Continue praticando!"
 
     return (
-      <div className="container mx-auto p-4 md:p-6">
+      <div className="container mx-auto p-4 md:p-6 bg-studify-white min-h-screen">
         <div className="max-w-2xl mx-auto text-center space-y-6 bg-white p-6 sm:p-8 rounded-xl shadow-xl border">
           {onClose && (
             <div className="flex justify-start mb-4">
-              <Button onClick={onClose} variant="outline" size="sm">
+              <Button onClick={onClose} variant="outline" size="sm" className="border-studify-gray text-studify-gray">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar ao Menu
               </Button>
             </div>
           )}
           <Trophy className="h-20 w-20 text-yellow-500 mx-auto" />
-          <h2 className="text-3xl font-bold text-gray-800">Sessão Concluída!</h2>
-          <p className="text-xl text-purple-600 font-medium">{performanceMessage}</p>
+          <h2 className="text-3xl font-bold text-studify-green">Sessão Concluída!</h2>
+          <p className="text-xl text-studify-green font-medium">{performanceMessage}</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="bg-purple-50 border-purple-200">
+            <Card className="bg-green-50 border-studify-green">
               <CardContent className="pt-5 text-center">
-                <div className="text-3xl font-bold text-purple-700">{session.correctAnswers}</div>
-                <p className="text-sm text-purple-600 mt-1">Corretas</p>
+                <div className="text-3xl font-bold text-studify-green">{session.correctAnswers}</div>
+                <p className="text-sm text-studify-gray mt-1">Corretas</p>
               </CardContent>
             </Card>
-            <Card className="bg-green-50 border-green-200">
+            <Card className="bg-green-50 border-studify-green">
               <CardContent className="pt-5 text-center">
-                <div className="text-3xl font-bold text-green-700">{accuracy}%</div>
-                <p className="text-sm text-green-600 mt-1">Precisão</p>
+                <div className="text-3xl font-bold text-studify-green">{accuracy}%</div>
+                <p className="text-sm text-studify-gray mt-1">Precisão</p>
               </CardContent>
             </Card>
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="bg-green-50 border-studify-green">
               <CardContent className="pt-5 text-center">
-                <div className="text-3xl font-bold text-blue-700">{formatTime(studyTime)}</div>
-                <p className="text-sm text-blue-600 mt-1">Tempo Total</p>
+                <div className="text-3xl font-bold text-studify-green">{formatTime(studyTime)}</div>
+                <p className="text-sm text-studify-gray mt-1">Tempo Total</p>
               </CardContent>
             </Card>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-            <Button onClick={handleRestart} size="lg" className="bg-purple-600 hover:bg-purple-700 text-white">
+            <Button
+              onClick={handleRestart}
+              size="lg"
+              className="bg-studify-green hover:bg-studify-lightgreen text-studify-white hover:text-studify-green"
+            >
               <RotateCcw className="mr-2 h-5 w-5" />
               Estudar Novamente
             </Button>
             {onClose && (
-              <Button onClick={onClose} variant="outline" size="lg">
+              <Button onClick={onClose} variant="outline" size="lg" className="border-studify-gray text-studify-gray">
                 <ArrowLeft className="mr-2 h-5 w-5" />
                 Menu Principal
               </Button>
@@ -211,40 +250,59 @@ export function FlashcardViewer({
     )
   }
 
+  // Ensure we have a valid current card
+  if (!currentCard) {
+    return (
+      <div className="container mx-auto p-6 bg-studify-white min-h-screen">
+        <div className="max-w-2xl mx-auto text-center py-12 space-y-4">
+          <Target className="h-16 w-16 text-gray-400 mx-auto" />
+          <h3 className="text-xl font-semibold text-studify-gray">Erro ao carregar flashcard</h3>
+          <p className="text-studify-gray">Não foi possível carregar o flashcard atual.</p>
+          {onClose && (
+            <Button onClick={onClose} variant="outline" className="border-studify-gray text-studify-gray">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar ao Menu
+            </Button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="container mx-auto p-4 md:p-6">
+    <div className="container mx-auto p-4 md:p-6 bg-studify-white min-h-screen">
       <div className="max-w-3xl mx-auto space-y-5">
         {onClose && (
           <div className="flex justify-start">
-            <Button onClick={onClose} variant="outline" size="sm">
+            <Button onClick={onClose} variant="outline" size="sm" className="border-studify-gray text-studify-gray">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar ao Menu
             </Button>
           </div>
         )}
 
-        <Card className="shadow-lg border rounded-lg">
+        <Card className="shadow-lg border rounded-lg bg-white">
           <CardContent className="p-4 sm:p-6 space-y-3">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm">
-              <div className="font-semibold text-purple-700 text-lg">{initialDeckName}</div>
+              <div className="font-semibold text-studify-green text-lg">{initialDeckName}</div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5 text-gray-600">
+                <div className="flex items-center gap-1.5 text-studify-gray">
                   <Lightbulb className="h-4 w-4 text-yellow-500" />
                   <span>
                     {session.currentIndex + 1} / {session.totalCards}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-gray-600">
+                <div className="flex items-center gap-1.5 text-studify-gray">
                   <Clock className="h-4 w-4" />
                   <span>{formatTime(studyTime)}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-green-600">
+                <div className="flex items-center gap-1.5 text-studify-green">
                   <CheckCircle className="h-4 w-4" />
                   <span>{session.correctAnswers}</span>
                 </div>
               </div>
             </div>
-            <Progress value={progress} className="h-2 bg-purple-100 [&>div]:bg-purple-500" />
+            <Progress value={progress} className="h-2 bg-green-100 [&>div]:bg-studify-green" />
           </CardContent>
         </Card>
 
@@ -259,7 +317,7 @@ export function FlashcardViewer({
           <Button
             onClick={handlePrevious}
             variant="outline"
-            className="py-5 text-gray-700 hover:bg-gray-100 border-gray-300"
+            className="py-5 text-studify-gray hover:bg-gray-100 border-gray-300"
             disabled={session.currentIndex === 0}
             aria-label="Card Anterior"
           >
@@ -270,7 +328,7 @@ export function FlashcardViewer({
             <Button
               onClick={handleRevealAnswer}
               size="lg"
-              className="col-span-1 py-5 bg-purple-600 hover:bg-purple-700 text-white text-base"
+              className="col-span-1 py-5 bg-studify-green hover:bg-studify-lightgreen text-studify-white hover:text-studify-green text-base"
             >
               <Eye className="mr-2 h-5 w-5" />
               Mostrar Resposta
@@ -287,7 +345,7 @@ export function FlashcardViewer({
               </Button>
               <Button
                 onClick={() => handleAnswer(true)}
-                className="py-5 bg-green-600 hover:bg-green-700 text-white"
+                className="py-5 bg-studify-green hover:bg-studify-lightgreen text-studify-white hover:text-studify-green"
                 aria-label="Marcar como Acertei"
               >
                 <CheckCircle className="h-5 w-5" />
@@ -298,14 +356,14 @@ export function FlashcardViewer({
           <Button
             onClick={handleNext}
             variant="outline"
-            className="py-5 text-gray-700 hover:bg-gray-100 border-gray-300"
-            disabled={session.currentIndex === session.totalCards - 1 && answerRevealed} // Disable next on last card only if answer revealed
+            className="py-5 text-studify-gray hover:bg-gray-100 border-gray-300"
+            disabled={session.currentIndex === session.totalCards - 1 && answerRevealed}
             aria-label="Próximo Card"
           >
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
-        <p className="text-center text-xs text-gray-500 mt-2">
+        <p className="text-center text-xs text-studify-gray mt-2">
           Use as setas do teclado para navegar (← anterior, → próximo, Espaço para virar).
         </p>
       </div>
