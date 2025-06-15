@@ -100,6 +100,16 @@ export default function ComprehensiveSubjectSelector({ onGenerate, isGenerating 
     loadSubjects()
   }, [])
 
+  // Adjust numberOfFlashcards when topics change
+  useEffect(() => {
+    if (selectedTopics.size > 0) {
+      const maxAvailable = getEstimatedDistribution().reduce((sum, topic) => sum + topic.estimated_cards, 0)
+      if (numberOfFlashcards > maxAvailable) {
+        setNumberOfFlashcards(Math.min(maxAvailable, 40))
+      }
+    }
+  }, [selectedTopics, selectedSubject])
+
   const loadSubjects = async () => {
     setIsLoading(true)
     try {
@@ -372,18 +382,49 @@ export default function ComprehensiveSubjectSelector({ onGenerate, isGenerating 
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="num-cards">Número de Flashcards (5-40)</Label>
-                  <Input
-                    id="num-cards"
-                    type="number"
-                    min="5"
-                    max="40"
-                    value={numberOfFlashcards}
-                    onChange={(e) =>
-                      setNumberOfFlashcards(Math.max(5, Math.min(40, Number.parseInt(e.target.value) || 20)))
-                    }
-                    className="mt-1"
-                  />
+                  <Label htmlFor="num-cards">Número de Flashcards</Label>
+                  <Select
+                    value={numberOfFlashcards.toString()}
+                    onValueChange={(value) => setNumberOfFlashcards(Number(value))}
+                  >
+                    <SelectTrigger id="num-cards" className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const maxCards =
+                          selectedTopics.size > 0
+                            ? Math.min(
+                                40,
+                                getEstimatedDistribution().reduce((sum, topic) => sum + topic.estimated_cards, 0),
+                              )
+                            : 40
+                        const options = []
+                        for (let i = 5; i <= maxCards; i += 5) {
+                          options.push(
+                            <SelectItem key={i} value={i.toString()}>
+                              {i} flashcards
+                            </SelectItem>,
+                          )
+                        }
+                        // Add the exact max if it's not a multiple of 5
+                        if (maxCards % 5 !== 0 && maxCards > 5) {
+                          options.push(
+                            <SelectItem key={maxCards} value={maxCards.toString()}>
+                              {maxCards} flashcards (máximo)
+                            </SelectItem>,
+                          )
+                        }
+                        return options
+                      })()}
+                    </SelectContent>
+                  </Select>
+                  {selectedTopics.size > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Máximo disponível:{" "}
+                      {getEstimatedDistribution().reduce((sum, topic) => sum + topic.estimated_cards, 0)} cards
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="difficulty">Dificuldade</Label>
