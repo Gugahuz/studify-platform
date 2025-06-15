@@ -249,10 +249,10 @@ async function generateFlashcardsForSubjectTopic(
   difficulty: string,
 ): Promise<Flashcard[]> {
   const difficultyMap = {
-    easy: "básico e introdutório",
-    medium: "intermediário",
-    hard: "avançado e complexo",
-    random: "variado (básico a avançado)",
+    easy: "básico e introdutório (nível 1-2)",
+    medium: "intermediário (nível 3)",
+    hard: "avançado e complexo (nível 4-5)",
+    random: "variado (níveis 1-5 aleatoriamente)",
   }
   const difficultyPrompt = difficultyMap[difficulty as keyof typeof difficultyMap] || difficultyMap.medium
 
@@ -263,81 +263,113 @@ Crie exatamente ${count} flashcards educacionais de alta qualidade em Português
 INSTRUÇÕES ESPECÍFICAS:
 - Matéria: ${subjectName}
 - Tópico: ${topicName}  
-- Nível: ${difficultyPrompt}
+- Nível de Dificuldade: ${difficultyPrompt}
+- IMPORTANTE: Todos os flashcards devem seguir o nível de dificuldade "${difficulty}" selecionado pelo usuário
 - Cada flashcard deve ser específico e relevante para ${topicName} dentro de ${subjectName}
 
-FORMATO OBRIGATÓRIO para cada flashcard:
-{
-  "question": "Pergunta clara e específica sobre ${topicName}",
-  "answer": "Resposta precisa e educativa",
-  "explanation": "Explicação detalhada com contexto e exemplos (mínimo 40 palavras)",
-  "difficulty_level": [número de 1 a 5 baseado no nível ${difficultyPrompt}],
-  "tags": ["tag1", "tag2", "tag3"] (3-4 tags relevantes em minúsculas)
-}
+FORMATO OBRIGATÓRIO - RETORNE APENAS UM ARRAY JSON VÁLIDO:
+[
+  {
+    "question": "Pergunta clara e específica sobre ${topicName}",
+    "answer": "Resposta precisa e educativa",
+    "explanation": "Explicação detalhada com contexto e exemplos (mínimo 40 palavras)",
+    "difficulty_level": 3,
+    "tags": ["tag1", "tag2", "tag3"]
+  }
+]
 
-EXEMPLOS DE QUALIDADE por matéria:
+REGRAS CRÍTICAS:
+- RETORNE APENAS O ARRAY JSON, SEM TEXTO ADICIONAL
+- NÃO use markdown, código ou explicações extras
+- Cada flashcard deve ter exatamente esses 5 campos
+- difficulty_level deve ser um número de 1 a 5
+- tags deve ser um array de strings
 
-Se ${subjectName} = "Matemática" e ${topicName} = "Álgebra Linear":
-- Pergunta: "O que caracteriza uma transformação linear?"
-- Resposta: "Uma transformação T: V → W é linear se T(u+v) = T(u) + T(v) e T(cv) = cT(v) para quaisquer vetores u,v e escalar c."
-
-Se ${subjectName} = "Física" e ${topicName} = "Mecânica Clássica":  
-- Pergunta: "Como a Segunda Lei de Newton se aplica em sistemas com massa variável?"
-- Resposta: "Para massa variável, F = dp/dt, onde p é o momento linear, resultando em F = ma + v(dm/dt)."
-
-Se ${subjectName} = "História" e ${topicName} = "História do Brasil":
-- Pergunta: "Quais foram as principais consequências econômicas da abolição da escravidão no Brasil?"
-- Resposta: "A abolição causou crise na agricultura cafeeira, migração europeia subsidiada, início da industrialização e transformação das relações de trabalho."
-
-IMPORTANTE:
-- NÃO use termos genéricos como "Tópico Específico" ou "Matéria Desconhecida"
-- Seja específico sobre ${topicName} dentro do contexto de ${subjectName}
-- Garanta que cada pergunta teste conhecimento real sobre o tópico
-- As explicações devem educar e contextualizar
-
-Retorne APENAS um array JSON válido com os ${count} flashcards:
+Crie ${count} flashcards seguindo exatamente este formato:
 `
 
   try {
+    console.log(`🤖 Gerando ${count} flashcards para ${subjectName} - ${topicName} (${difficulty})`)
+
     const { text } = await generateText({
       model: openai("gpt-4-turbo"),
       prompt,
-      temperature: 0.3, // Menor temperatura para mais consistência
-      maxTokens: 4000, // Aumentar limite de tokens
+      temperature: 0.2, // Menor temperatura para mais consistência
+      maxTokens: 3000,
     })
 
-    // Melhor parsing do JSON
+    console.log("📝 Resposta bruta da IA:", text.substring(0, 200) + "...")
+
+    // Limpeza mais robusta do texto
     let cleanedText = text.trim()
 
-    // Remove markdown code blocks se existirem
-    if (cleanedText.startsWith("```")) {
-      cleanedText = cleanedText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
+    // Remove possíveis markdown code blocks
+    cleanedText = cleanedText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```$/i, "")
+
+    // Remove texto antes e depois do JSON
+    const jsonStart = cleanedText.indexOf("[")
+    const jsonEnd = cleanedText.lastIndexOf("]")
+
+    if (jsonStart === -1 || jsonEnd === -1 || jsonStart >= jsonEnd) {
+      throw new Error("Não foi possível encontrar um array JSON válido na resposta")
     }
 
-    // Tenta encontrar o array JSON
-    const jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
-    if (jsonMatch) {
-      cleanedText = jsonMatch[0]
-    }
+    cleanedText = cleanedText.substring(jsonStart, jsonEnd + 1)
 
-    const parsedFlashcards = JSON.parse(cleanedText)
+    console.log("🧹 Texto limpo:", cleanedText.substring(0, 200) + "...")
+
+    let parsedFlashcards
+    try {
+      parsedFlashcards = JSON.parse(cleanedText)
+    } catch (parseError) {
+      console.error("❌ Erro ao fazer parse do JSON:", parseError)
+      console.error("📄 Texto que causou erro:", cleanedText)
+      throw new Error(`JSON inválido: ${parseError instanceof Error ? parseError.message : "Erro desconhecido"}`)
+    }
 
     if (!Array.isArray(parsedFlashcards)) {
-      throw new Error("Resposta não é um array")
+      throw new Error("Resposta não é um array de flashcards")
+    }
+
+    if (parsedFlashcards.length === 0) {
+      throw new Error("Array de flashcards está vazio")
     }
 
     // Validação e limpeza dos flashcards
     const validFlashcards = parsedFlashcards
-      .filter((card) => card.question && card.answer && card.explanation)
+      .filter((card, index) => {
+        const isValid =
+          card &&
+          typeof card.question === "string" &&
+          card.question.trim() &&
+          typeof card.answer === "string" &&
+          card.answer.trim() &&
+          typeof card.explanation === "string" &&
+          card.explanation.trim()
+
+        if (!isValid) {
+          console.warn(`⚠️ Flashcard ${index} inválido:`, card)
+        }
+        return isValid
+      })
       .slice(0, count) // Garante o número correto
       .map((card: any, index: number) => {
+        let adjustedDifficulty = Math.max(1, Math.min(5, Number(card.difficulty_level) || 3))
+
+        // Ajustar dificuldade baseada na seleção do usuário
+        if (difficulty === "easy" && adjustedDifficulty > 2) adjustedDifficulty = Math.random() > 0.5 ? 1 : 2
+        if (difficulty === "medium" && (adjustedDifficulty < 2 || adjustedDifficulty > 4)) adjustedDifficulty = 3
+        if (difficulty === "hard" && adjustedDifficulty < 4) adjustedDifficulty = Math.random() > 0.5 ? 4 : 5
+
         return createFlashcardObject(
-          `ai-${subjectName.toLowerCase()}-${topicName.toLowerCase()}-${Date.now()}-${index}`,
+          `ai-${subjectName.toLowerCase().replace(/\s+/g, "-")}-${topicName.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}-${index}`,
           card.question.trim(),
           card.answer.trim(),
           card.explanation.trim(),
-          Math.max(1, Math.min(5, card.difficulty_level || 3)),
-          Array.isArray(card.tags) ? card.tags.slice(0, 4) : [subjectName.toLowerCase(), topicName.toLowerCase()],
+          adjustedDifficulty,
+          Array.isArray(card.tags)
+            ? card.tags.slice(0, 4).map((tag) => String(tag).toLowerCase())
+            : [subjectName.toLowerCase(), topicName.toLowerCase()],
           subjectName,
           topicName,
           "IA Generativa (GPT-4-turbo)",
@@ -345,12 +377,20 @@ Retorne APENAS um array JSON válido com os ${count} flashcards:
       })
 
     if (validFlashcards.length === 0) {
-      throw new Error("Nenhum flashcard válido foi gerado")
+      throw new Error("Nenhum flashcard válido foi gerado após validação")
     }
 
+    console.log(`✅ Gerados ${validFlashcards.length} flashcards válidos`)
     return validFlashcards
   } catch (error) {
     console.error("❌ Erro na geração com IA:", error)
+    console.error("🔍 Detalhes do erro:", {
+      subjectName,
+      topicName,
+      count,
+      difficulty,
+      errorMessage: error instanceof Error ? error.message : "Erro desconhecido",
+    })
 
     // Fallback mais específico
     return [
@@ -358,7 +398,7 @@ Retorne APENAS um array JSON válido com os ${count} flashcards:
         `fallback-${Date.now()}`,
         `Conceitos Fundamentais de ${topicName}`,
         `${topicName} é um tópico importante dentro de ${subjectName} que requer estudo aprofundado.`,
-        `Este flashcard foi gerado como fallback devido a um erro na geração automática. O tópico ${topicName} em ${subjectName} possui diversos conceitos que podem ser explorados através de flashcards específicos. Recomenda-se tentar gerar novamente para obter conteúdo mais detalhado.`,
+        `Este flashcard foi gerado como fallback devido a um erro na geração automática. O tópico ${topicName} em ${subjectName} possui diversos conceitos que podem ser explorados através de flashcards específicos. Recomenda-se tentar gerar novamente para obter conteúdo mais detalhado. Erro: ${error instanceof Error ? error.message : "Desconhecido"}`,
         3,
         [subjectName.toLowerCase(), topicName.toLowerCase(), "conceitos", "estudo"],
         subjectName,
@@ -437,60 +477,88 @@ INSTRUÇÕES:
 - Crie perguntas que testem compreensão real
 - Baseie-se EXCLUSIVAMENTE no conteúdo fornecido
 
-FORMATO OBRIGATÓRIO para cada flashcard:
-{
-  "question": "Pergunta específica baseada no conteúdo",
-  "answer": "Resposta precisa extraída do conteúdo", 
-  "explanation": "Explicação detalhada com contexto (mínimo 40 palavras)",
-  "difficulty_level": [número de 1 a 5],
-  "tags": ["tag1", "tag2", "tag3"],
-  "subject": "Matéria inferida do conteúdo",
-  "topic": "Tópico específico inferido"
-}
+FORMATO OBRIGATÓRIO - RETORNE APENAS UM ARRAY JSON VÁLIDO:
+[
+  {
+    "question": "Pergunta específica baseada no conteúdo",
+    "answer": "Resposta precisa extraída do conteúdo", 
+    "explanation": "Explicação detalhada com contexto (mínimo 40 palavras)",
+    "difficulty_level": 3,
+    "tags": ["tag1", "tag2", "tag3"],
+    "subject": "Matéria inferida do conteúdo",
+    "topic": "Tópico específico inferido"
+  }
+]
 
-Retorne APENAS um array JSON válido com os ${count} flashcards:
+REGRAS CRÍTICAS:
+- RETORNE APENAS O ARRAY JSON, SEM TEXTO ADICIONAL
+- NÃO use markdown, código ou explicações extras
+- Cada flashcard deve ter exatamente esses 7 campos
+
+Crie ${count} flashcards seguindo exatamente este formato:
 `
 
   try {
+    console.log(`🤖 Gerando ${count} flashcards de conteúdo personalizado (${difficulty})`)
+
     const { text } = await generateText({
       model: openai("gpt-4-turbo"),
       prompt,
-      temperature: 0.3,
-      maxTokens: 4000,
+      temperature: 0.2,
+      maxTokens: 3000,
     })
 
+    console.log("📝 Resposta bruta da IA:", text.substring(0, 200) + "...")
+
+    // Limpeza robusta do texto
     let cleanedText = text.trim()
-    if (cleanedText.startsWith("```")) {
-      cleanedText = cleanedText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
+    cleanedText = cleanedText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```$/i, "")
+
+    const jsonStart = cleanedText.indexOf("[")
+    const jsonEnd = cleanedText.lastIndexOf("]")
+
+    if (jsonStart === -1 || jsonEnd === -1 || jsonStart >= jsonEnd) {
+      throw new Error("Não foi possível encontrar um array JSON válido na resposta")
     }
 
-    const jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
-    if (jsonMatch) {
-      cleanedText = jsonMatch[0]
-    }
+    cleanedText = cleanedText.substring(jsonStart, jsonEnd + 1)
 
-    const parsedFlashcards = JSON.parse(cleanedText)
+    let parsedFlashcards
+    try {
+      parsedFlashcards = JSON.parse(cleanedText)
+    } catch (parseError) {
+      console.error("❌ Erro ao fazer parse do JSON:", parseError)
+      console.error("📄 Texto que causou erro:", cleanedText)
+      throw new Error(`JSON inválido: ${parseError instanceof Error ? parseError.message : "Erro desconhecido"}`)
+    }
 
     if (!Array.isArray(parsedFlashcards)) {
-      throw new Error("Resposta não é um array")
+      throw new Error("Resposta não é um array de flashcards")
     }
 
-    return parsedFlashcards
-      .filter((card) => card.question && card.answer && card.explanation)
+    const validFlashcards = parsedFlashcards
+      .filter((card) => card && card.question && card.answer && card.explanation)
       .slice(0, count)
       .map((card: any, index: number) =>
         createFlashcardObject(
           `ai-custom-${Date.now()}-${index}`,
-          card.question.trim(),
-          card.answer.trim(),
-          card.explanation.trim(),
-          Math.max(1, Math.min(5, card.difficulty_level || 3)),
-          Array.isArray(card.tags) ? card.tags.slice(0, 4) : ["personalizado"],
-          card.subject || "Conteúdo Personalizado",
-          card.topic || "Tópico Personalizado",
+          String(card.question).trim(),
+          String(card.answer).trim(),
+          String(card.explanation).trim(),
+          Math.max(1, Math.min(5, Number(card.difficulty_level) || 3)),
+          Array.isArray(card.tags) ? card.tags.slice(0, 4).map((tag) => String(tag).toLowerCase()) : ["personalizado"],
+          String(card.subject || "Conteúdo Personalizado"),
+          String(card.topic || "Tópico Personalizado"),
           "IA Generativa (Conteúdo Personalizado)",
         ),
       )
+
+    if (validFlashcards.length === 0) {
+      throw new Error("Nenhum flashcard válido foi gerado")
+    }
+
+    console.log(`✅ Gerados ${validFlashcards.length} flashcards válidos de conteúdo personalizado`)
+    return validFlashcards
   } catch (error) {
     console.error("❌ Erro na geração com IA (conteúdo personalizado):", error)
     return [
@@ -498,7 +566,7 @@ Retorne APENAS um array JSON válido com os ${count} flashcards:
         `fallback-custom-${Date.now()}`,
         "Erro na Geração Personalizada",
         "Não foi possível processar o conteúdo fornecido adequadamente.",
-        `Houve um problema ao analisar o conteúdo personalizado fornecido. Verifique se o texto está bem formatado e tente novamente. O sistema utiliza GPT-4-turbo para análise inteligente do conteúdo.`,
+        `Houve um problema ao analisar o conteúdo personalizado fornecido. Verifique se o texto está bem formatado e tente novamente. O sistema utiliza GPT-4-turbo para análise inteligente do conteúdo. Erro: ${error instanceof Error ? error.message : "Desconhecido"}`,
         3,
         ["erro", "personalizado", "conteudo"],
         "Sistema",

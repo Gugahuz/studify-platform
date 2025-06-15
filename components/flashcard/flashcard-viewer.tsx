@@ -15,10 +15,15 @@ import {
   Target,
   ArrowLeft,
   Lightbulb,
+  AlertCircle,
+  Brain,
+  Sparkles,
+  Zap,
 } from "lucide-react"
 import type { Flashcard } from "@/types/flashcards"
 import FlippableFlashcardItem, { type FlippableFlashcardRef } from "./flippable-flashcard-item"
 import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface StudySession {
   currentIndex: number
@@ -28,17 +33,23 @@ interface StudySession {
 }
 
 interface FlashcardViewerProps {
-  flashcards: Flashcard[]
+  flashcards?: Flashcard[]
   onComplete?: (session: StudySession) => void
   onClose?: () => void
   initialDeckName?: string
+  isLoading?: boolean
+  loadingProgress?: number
+  generationParams?: any
 }
 
 export function FlashcardViewer({
-  flashcards,
+  flashcards = [],
   onComplete,
   onClose,
   initialDeckName = "Deck de Estudo",
+  isLoading = false,
+  loadingProgress = 0,
+  generationParams,
 }: FlashcardViewerProps) {
   const [session, setSession] = useState<StudySession>({
     currentIndex: 0,
@@ -49,26 +60,36 @@ export function FlashcardViewer({
   const [startTime] = useState(Date.now())
   const [studyTime, setStudyTime] = useState(0)
   const [answerRevealed, setAnswerRevealed] = useState(false)
+  const [error, setError] = useState("")
   const cardRef = useRef<FlippableFlashcardRef>(null)
 
   useEffect(() => {
     const timer = setInterval(() => {
-      if (!session.isComplete) {
+      if (!session.isComplete && !isLoading) {
         setStudyTime(Math.floor((Date.now() - startTime) / 1000))
       }
     }, 1000)
     return () => clearInterval(timer)
-  }, [startTime, session.isComplete])
+  }, [startTime, session.isComplete, isLoading])
 
   useEffect(() => {
     setAnswerRevealed(false)
     cardRef.current?.setFlipState(false)
   }, [session.currentIndex])
 
+  useEffect(() => {
+    if (flashcards.length > 0) {
+      setSession((prev) => ({
+        ...prev,
+        totalCards: flashcards.length,
+      }))
+    }
+  }, [flashcards])
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (session.isComplete) return
+      if (session.isComplete || isLoading) return
 
       switch (e.key) {
         case "ArrowLeft":
@@ -96,8 +117,124 @@ export function FlashcardViewer({
 
     window.addEventListener("keydown", handleKeyPress)
     return () => window.removeEventListener("keydown", handleKeyPress)
-  }, [answerRevealed, session.isComplete, session.currentIndex])
+  }, [answerRevealed, session.isComplete, session.currentIndex, isLoading])
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 bg-studify-white min-h-screen">
+        <div className="max-w-3xl mx-auto space-y-6">
+          {onClose && (
+            <div className="flex justify-start">
+              <Button onClick={onClose} variant="outline" size="sm" className="border-studify-gray text-studify-gray">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar ao Menu
+              </Button>
+            </div>
+          )}
+
+          <Card className="shadow-lg border rounded-lg bg-white">
+            <CardContent className="p-6 space-y-6">
+              <div className="text-center space-y-4">
+                <div className="flex justify-center">
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-studify-green/10 rounded-full flex items-center justify-center">
+                      <Brain className="h-8 w-8 text-studify-green animate-pulse" />
+                    </div>
+                    <div className="absolute -top-1 -right-1">
+                      <Sparkles className="h-6 w-6 text-yellow-500 animate-bounce" />
+                    </div>
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-studify-green">Gerando Flashcards</h2>
+                <p className="text-studify-gray">Nossa IA está criando flashcards personalizados para você...</p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm text-studify-gray">
+                  <span>Progresso da Geração</span>
+                  <span>{Math.round(loadingProgress)}%</span>
+                </div>
+                <Progress value={loadingProgress} className="h-3 bg-green-100 [&>div]:bg-studify-green" />
+              </div>
+
+              {generationParams && (
+                <div className="bg-green-50 p-4 rounded-lg space-y-2">
+                  <h3 className="font-semibold text-studify-green">Configurações:</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm text-studify-gray">
+                    {generationParams.numberOfFlashcards && (
+                      <div>
+                        <span className="font-medium">Quantidade:</span> {generationParams.numberOfFlashcards} cards
+                      </div>
+                    )}
+                    {generationParams.difficulty && (
+                      <div>
+                        <span className="font-medium">Dificuldade:</span>{" "}
+                        {generationParams.difficulty === "easy"
+                          ? "Fácil"
+                          : generationParams.difficulty === "medium"
+                            ? "Médio"
+                            : "Difícil"}
+                      </div>
+                    )}
+                    {generationParams.subjectName && (
+                      <div className="col-span-2">
+                        <span className="font-medium">Matéria:</span> {generationParams.subjectName}
+                      </div>
+                    )}
+                    {generationParams.topicCount && (
+                      <div>
+                        <span className="font-medium">Tópicos:</span> {generationParams.topicCount}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="text-center text-sm text-studify-gray">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-yellow-500" />
+                  <span>Powered by GPT-4-turbo</span>
+                </div>
+                <p>⏱️ Tempo estimado: 30-60 segundos</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 bg-studify-white min-h-screen">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {onClose && (
+            <div className="flex justify-start">
+              <Button onClick={onClose} variant="outline" size="sm" className="border-studify-gray text-studify-gray">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar ao Menu
+              </Button>
+            </div>
+          )}
+
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-base">{error}</AlertDescription>
+          </Alert>
+
+          <div className="text-center">
+            <Button onClick={onClose} className="bg-studify-green hover:bg-studify-lightgreen text-white">
+              Tentar Novamente
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Empty state
   if (!flashcards || flashcards.length === 0) {
     return (
       <div className="container mx-auto p-6 bg-studify-white min-h-screen">

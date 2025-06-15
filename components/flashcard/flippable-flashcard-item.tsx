@@ -126,16 +126,7 @@ const FlippableFlashcardItem = forwardRef<FlippableFlashcardRef, FlippableFlashc
               </div>
             </div>
 
-            <div className="flex justify-between items-end mt-3">
-              {safeFlashcard.tags && safeFlashcard.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {safeFlashcard.tags.slice(0, 3).map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs bg-green-100 text-studify-green">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+            <div className="flex justify-end items-end mt-3">
               <Button
                 variant="ghost"
                 size="icon"

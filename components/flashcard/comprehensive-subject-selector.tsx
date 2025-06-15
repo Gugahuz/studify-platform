@@ -39,7 +39,6 @@ interface ComprehensiveTopic {
   id: string
   name: string
   description: string
-  difficulty_level: number
   estimated_cards: number
 }
 
@@ -58,6 +57,7 @@ interface ComprehensiveSubject {
 interface ComprehensiveSubjectSelectorProps {
   onGenerate: (params: {
     subjectId: string
+    subjectName: string
     topicIds: string[]
     topicEstimatedCards: { [key: string]: number }
     numberOfFlashcards: number
@@ -104,6 +104,11 @@ export default function ComprehensiveSubjectSelector({ onGenerate, isGenerating 
     setIsLoading(true)
     try {
       const response = await fetch("/api/flashcards/comprehensive-subjects")
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
       const data = await response.json()
 
       if (data.success) {
@@ -113,9 +118,12 @@ export default function ComprehensiveSubjectSelector({ onGenerate, isGenerating 
         if (data.categories.length > 0) {
           setExpandedCategories(new Set([data.categories[0]]))
         }
+      } else {
+        console.error("API returned error:", data.error)
       }
     } catch (error) {
       console.error("Error loading subjects:", error)
+      // You could add a toast notification here or set an error state
     } finally {
       setIsLoading(false)
     }
@@ -167,6 +175,7 @@ export default function ComprehensiveSubjectSelector({ onGenerate, isGenerating 
 
     onGenerate({
       subjectId: selectedSubject.id,
+      subjectName: selectedSubject.name, // Add this line
       topicIds: Array.from(selectedTopics),
       topicEstimatedCards,
       numberOfFlashcards,
@@ -201,20 +210,6 @@ export default function ComprehensiveSubjectSelector({ onGenerate, isGenerating 
     },
     {} as { [category: string]: ComprehensiveSubject[] },
   )
-
-  const getDifficultyColor = (level: number) => {
-    if (level <= 2) return "bg-green-100 text-green-700"
-    if (level === 3) return "bg-yellow-100 text-yellow-700"
-    if (level === 4) return "bg-orange-100 text-orange-700"
-    return "bg-red-100 text-red-700"
-  }
-
-  const getDifficultyText = (level: number) => {
-    if (level <= 2) return "Fácil"
-    if (level === 3) return "Médio"
-    if (level === 4) return "Difícil"
-    return "Muito Difícil"
-  }
 
   if (isLoading) {
     return (
@@ -363,9 +358,6 @@ export default function ComprehensiveSubjectSelector({ onGenerate, isGenerating 
                         <div className="font-medium text-sm">{topic.name}</div>
                         <div className="text-xs text-gray-600 mt-1">{topic.description}</div>
                         <div className="flex gap-2 mt-2">
-                          <Badge className={cn("text-xs", getDifficultyColor(topic.difficulty_level))}>
-                            {getDifficultyText(topic.difficulty_level)}
-                          </Badge>
                           <Badge variant="outline" className="text-xs">
                             ~{topic.estimated_cards} cards
                           </Badge>
@@ -380,15 +372,15 @@ export default function ComprehensiveSubjectSelector({ onGenerate, isGenerating 
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="num-cards">Número de Flashcards</Label>
+                  <Label htmlFor="num-cards">Número de Flashcards (5-40)</Label>
                   <Input
                     id="num-cards"
                     type="number"
                     min="5"
-                    max="100"
+                    max="40"
                     value={numberOfFlashcards}
                     onChange={(e) =>
-                      setNumberOfFlashcards(Math.max(5, Math.min(100, Number.parseInt(e.target.value) || 20)))
+                      setNumberOfFlashcards(Math.max(5, Math.min(40, Number.parseInt(e.target.value) || 20)))
                     }
                     className="mt-1"
                   />

@@ -19,7 +19,6 @@ import {
   Play,
   Loader2,
   AlertCircle,
-  CheckCircle,
   ArrowLeft,
   Settings2,
   FileText,
@@ -36,6 +35,7 @@ import type {
 } from "@/types/flashcards"
 import { cn } from "@/lib/utils"
 import ComprehensiveSubjectSelector from "@/components/flashcard/comprehensive-subject-selector"
+import { Label } from "@/components/ui/label"
 
 interface StudySession {
   currentIndex: number
@@ -55,10 +55,11 @@ export default function FlashcardsPage() {
   const [isLoadingSubjects, setIsLoadingSubjects] = useState(true)
   const [showViewer, setShowViewer] = useState(false)
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
   const [needsSetup, setNeedsSetup] = useState(false)
   const [activeTab, setActiveTab] = useState("prebuilt")
   const [currentDeckName, setCurrentDeckName] = useState("Deck de Estudo")
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [generationParams, setGenerationParams] = useState<any>(null)
 
   const [customContent, setCustomContent] = useState("")
   const [numberOfCards, setNumberOfCards] = useState(10)
@@ -120,15 +121,15 @@ export default function FlashcardsPage() {
       const response = await fetch("/api/flashcards/subjects")
 
       if (!response.ok) {
-        const responseText = await response.text() // Tenta ler a resposta como texto
+        const responseText = await response.text()
         console.error("Erro da API - Status:", response.status)
-        console.error("Erro da API - Resposta Bruta (HTML/Texto):", responseText) // Loga o HTML/texto
+        console.error("Erro da API - Resposta Bruta (HTML/Texto):", responseText)
         setError(
-          `Falha ao buscar matérias. Status: ${response.status}. Início da Resposta: ${responseText.substring(0, 200)}...`, // Mostra os primeiros 200 chars
+          `Falha ao buscar matérias. Status: ${response.status}. Início da Resposta: ${responseText.substring(0, 200)}...`,
         )
         setSubjects([])
-        setIsLoadingSubjects(false) // Garante que o estado de loading seja resetado
-        return // Interrompe a execução aqui
+        setIsLoadingSubjects(false)
+        return
       }
 
       const data = await response.json()
@@ -149,11 +150,45 @@ export default function FlashcardsPage() {
     }
   }
 
-  const generateFlashcardsAPI = async (method: string, options: any = {}) => {
+  const generateFlashcardsAsync = async (method: string, options: any = {}) => {
+    // Immediately show viewer with loading state
     setIsGenerating(true)
     setError("")
-    setSuccess("")
     setFlashcards([])
+    setLoadingProgress(0)
+    setShowViewer(true)
+
+    // Set generation parameters for display
+    const params = {
+      method,
+      numberOfFlashcards: options.numberOfFlashcards || numberOfCards,
+      difficulty: options.difficulty || difficulty,
+      subjectName: options.subjectName,
+      topicCount: options.topicIds?.length,
+      ...options,
+    }
+    setGenerationParams(params)
+
+    // Determine deck name
+    let deckName = "Flashcards Personalizados"
+    if (options.deckId) {
+      const deck = prebuiltDecks.find((d) => d.id === options.deckId)
+      deckName = deck?.name || "Deck Pré-construído"
+    } else if (options.subjectId && options.topicIds) {
+      deckName = `Flashcards - ${options.topicIds.length} tópicos`
+    } else if (options.subjectId) {
+      const subject = subjects.find((s) => s.id === options.subjectId)
+      deckName = subject?.name || "Matéria Selecionada"
+    }
+    setCurrentDeckName(deckName)
+
+    // Simulate progress updates
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 90) return prev
+        return prev + Math.random() * 15
+      })
+    }, 1000)
 
     try {
       const requestBody = {
@@ -171,37 +206,23 @@ export default function FlashcardsPage() {
 
       const data = await response.json()
 
+      clearInterval(progressInterval)
+      setLoadingProgress(100)
+
       if (data.success && data.flashcards && data.flashcards.length > 0) {
-        setFlashcards(data.flashcards)
-        setSuccess(`${data.flashcards.length} flashcards gerados!`)
-        setShowViewer(true)
-
-        // Determine deck name based on method
-        let deckName = "Flashcards Personalizados"
-        if (options.deckId) {
-          const deck = prebuiltDecks.find((d) => d.id === options.deckId)
-          deckName = deck?.name || "Deck Pré-construído"
-        } else if (options.subjectId && options.topicIds) {
-          // For comprehensive subjects, create a descriptive name
-          deckName = `Flashcards - ${options.topicIds.length} tópicos`
-        } else if (options.subjectId) {
-          const subject = subjects.find((s) => s.id === options.subjectId)
-          deckName = subject?.name || "Matéria Selecionada"
-        }
-
-        setCurrentDeckName(deckName)
+        // Small delay to show 100% progress
+        setTimeout(() => {
+          setFlashcards(data.flashcards)
+          setIsGenerating(false)
+        }, 500)
       } else {
         setError(data.error || "Nenhum flashcard gerado. Tente ajustar os parâmetros.")
-        if (data.flashcards && data.flashcards.length > 0) {
-          setFlashcards(data.flashcards)
-          setShowViewer(true)
-          setCurrentDeckName("Flashcards de Exemplo")
-        }
+        setIsGenerating(false)
       }
     } catch (err) {
+      clearInterval(progressInterval)
       console.error("Erro na API de geração:", err)
       setError("Erro de conexão ao gerar flashcards. Tente novamente.")
-    } finally {
       setIsGenerating(false)
     }
   }
@@ -211,7 +232,7 @@ export default function FlashcardsPage() {
       setError("Por favor, insira algum conteúdo para gerar flashcards.")
       return
     }
-    generateFlashcardsAPI("ai-custom", { customContent })
+    generateFlashcardsAsync("ai-custom", { customContent })
   }
 
   const handleDatabaseGeneration = () => {
@@ -219,14 +240,14 @@ export default function FlashcardsPage() {
       setError("Por favor, selecione uma matéria.")
       return
     }
-    generateFlashcardsAPI("database", {
+    generateFlashcardsAsync("database", {
       subjectId: selectedSubjectId,
       topicId: selectedTopicId,
     })
   }
 
   const handlePrebuiltDeck = (deck: PrebuiltDeckType) => {
-    generateFlashcardsAPI("prebuilt", { deckId: deck.id, numberOfFlashcards: deck.total_cards })
+    generateFlashcardsAsync("prebuilt", { deckId: deck.id, numberOfFlashcards: deck.total_cards })
   }
 
   const handleManualCreation = () => {
@@ -234,24 +255,17 @@ export default function FlashcardsPage() {
   }
 
   const handleStudyComplete = (session: StudySession) => {
-    setSuccess(
-      `Sessão Concluída! Você acertou ${session.correctAnswers} de ${session.totalCards} (${Math.round(
-        (session.correctAnswers / session.totalCards) * 100,
-      )}%).`,
-    )
+    // Don't show success message anymore - user is already in the completion screen
+    console.log("Study session completed:", session)
   }
 
   const handleCloseViewer = () => {
     setShowViewer(false)
     setFlashcards([])
-  }
-
-  const getDifficultyStyling = (level: number) => {
-    if (level <= 1) return { badge: "bg-green-100 text-studify-green", text: "Muito Fácil" }
-    if (level === 2) return { badge: "bg-blue-100 text-blue-700", text: "Fácil" } // Keep some variety
-    if (level === 3) return { badge: "bg-yellow-100 text-yellow-700", text: "Médio" }
-    if (level === 4) return { badge: "bg-orange-100 text-orange-700", text: "Difícil" }
-    return { badge: "bg-red-100 text-red-700", text: "Muito Difícil" }
+    setIsGenerating(false)
+    setLoadingProgress(0)
+    setGenerationParams(null)
+    setError("")
   }
 
   if (needsSetup) {
@@ -259,7 +273,7 @@ export default function FlashcardsPage() {
       <DatabaseSetupWizard
         onSetupComplete={() => {
           setNeedsSetup(false)
-          checkDatabaseStatus() // Re-check status and load data
+          checkDatabaseStatus()
         }}
       />
     )
@@ -272,6 +286,9 @@ export default function FlashcardsPage() {
         onComplete={handleStudyComplete}
         onClose={handleCloseViewer}
         initialDeckName={currentDeckName}
+        isLoading={isGenerating}
+        loadingProgress={loadingProgress}
+        generationParams={generationParams}
       />
     )
   }
@@ -306,13 +323,6 @@ export default function FlashcardsPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Erro</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      {success && !showViewer && (
-        <Alert variant="default" className="bg-green-50 border-studify-green text-studify-green">
-          <CheckCircle className="h-4 w-4" />
-          <AlertTitle>Sucesso</AlertTitle>
-          <AlertDescription>{success}</AlertDescription>
         </Alert>
       )}
 
@@ -363,7 +373,6 @@ export default function FlashcardsPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {prebuiltDecks.map((deck) => {
-                    const difficultyStyle = getDifficultyStyling(deck.difficulty_level)
                     return (
                       <Card
                         key={deck.id}
@@ -398,8 +407,8 @@ export default function FlashcardsPage() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge className={cn("text-xs px-1.5 py-0.5", difficultyStyle.badge)}>
-                              {difficultyStyle.text}
+                            <Badge className={cn("text-xs px-1.5 py-0.5", "bg-green-100 text-studify-green")}>
+                              Muito Fácil
                             </Badge>
                             <Badge
                               variant="outline"
@@ -469,16 +478,14 @@ export default function FlashcardsPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="num-cards-ai" className="font-medium text-studify-gray">
-                    Número de Flashcards (5-30)
-                  </label>
+                  <Label htmlFor="num-cards-ai">Número de Flashcards (5-40)</Label>
                   <Input
                     id="num-cards-ai"
                     type="number"
                     min="5"
-                    max="30"
+                    max="40"
                     value={numberOfCards}
-                    onChange={(e) => setNumberOfCards(Math.max(5, Math.min(30, Number.parseInt(e.target.value) || 10)))}
+                    onChange={(e) => setNumberOfCards(Math.max(5, Math.min(40, Number.parseInt(e.target.value) || 10)))}
                     className="mt-1 border-gray-300 focus:border-studify-green focus:ring-studify-green"
                   />
                 </div>
@@ -528,12 +535,13 @@ export default function FlashcardsPage() {
             <CardContent>
               <ComprehensiveSubjectSelector
                 onGenerate={(params) => {
-                  generateFlashcardsAPI("database", {
+                  generateFlashcardsAsync("database", {
                     subjectId: params.subjectId,
                     topicIds: params.topicIds,
                     topicEstimatedCards: params.topicEstimatedCards,
                     numberOfFlashcards: params.numberOfFlashcards,
                     difficulty: params.difficulty,
+                    subjectName: params.subjectName,
                   })
                 }}
                 isGenerating={isGenerating}
