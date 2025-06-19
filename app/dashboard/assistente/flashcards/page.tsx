@@ -20,7 +20,6 @@ import {
   Loader2,
   AlertCircle,
   ArrowLeft,
-  Settings2,
   FileText,
   ListChecks,
   Clock,
@@ -36,6 +35,7 @@ import type {
 import { cn } from "@/lib/utils"
 import ComprehensiveSubjectSelector from "@/components/flashcard/comprehensive-subject-selector"
 import { Label } from "@/components/ui/label"
+import { MiniDeckList } from "@/components/custom-decks/mini-deck-list"
 
 interface StudySession {
   currentIndex: number
@@ -250,12 +250,7 @@ export default function FlashcardsPage() {
     generateFlashcardsAsync("prebuilt", { deckId: deck.id, numberOfFlashcards: deck.total_cards })
   }
 
-  const handleManualCreation = () => {
-    setError("Criação manual ainda em desenvolvimento.")
-  }
-
   const handleStudyComplete = (session: StudySession) => {
-    // Don't show success message anymore - user is already in the completion screen
     console.log("Study session completed:", session)
   }
 
@@ -307,15 +302,6 @@ export default function FlashcardsPage() {
             <p className="text-studify-gray">Crie, estude e domine qualquer assunto.</p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => setNeedsSetup(true)}
-          size="sm"
-          className="self-start sm:self-center border-studify-gray text-studify-gray hover:bg-gray-100"
-        >
-          <Settings2 className="h-4 w-4 mr-2" />
-          Verificar Configuração
-        </Button>
       </div>
 
       {error && (
@@ -332,7 +318,7 @@ export default function FlashcardsPage() {
             { value: "prebuilt", label: "Decks Prontos", Icon: BookOpen },
             { value: "ai-generator", label: "Gerador IA", Icon: Brain },
             { value: "database", label: "Por Matéria", Icon: Library },
-            { value: "manual", label: "Manual", Icon: PlusCircle },
+            { value: "meus-decks", label: "Meus Decks", Icon: PlusCircle },
           ].map(({ value, label, Icon }) => (
             <TabsTrigger
               key={value}
@@ -550,20 +536,39 @@ export default function FlashcardsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="manual" className="mt-6">
+        <TabsContent value="meus-decks" className="mt-6">
           <Card className="shadow-lg border-gray-200 bg-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl text-studify-green">
-                <PlusCircle className="h-6 w-6" /> Criação Manual
+                <PlusCircle className="h-6 w-6" /> Meus Decks
               </CardTitle>
               <CardDescription className="text-studify-gray">
-                Crie seus próprios flashcards com total controle.
+                Crie e gerencie seus próprios decks de flashcards personalizados.
               </CardDescription>
             </CardHeader>
-            <CardContent className="text-center py-10 text-studify-gray">
-              <ListChecks className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-              <p className="font-medium">Em Desenvolvimento</p>
-              <p className="text-sm">Esta funcionalidade estará disponível em breve!</p>
+            <CardContent>
+              <MiniDeckList
+                onStudyDeck={(deck) => {
+                  // Convert custom deck to flashcard format and start study
+                  const flashcards = deck.flashcards.map((card) => ({
+                    id: card.id,
+                    question: card.question,
+                    answer: card.answer,
+                    difficulty: deck.difficulty || "medium",
+                    subject_id: null,
+                    topic_id: null,
+                    created_at: card.created_at,
+                  }))
+                  setFlashcards(flashcards)
+                  setCurrentDeckName(deck.name)
+                  setShowViewer(true)
+                }}
+                onCreateNew={() => {
+                  setError("Funcionalidade de criação será implementada em breve!")
+                }}
+                hideTitle={true}
+                hideSearch={true}
+              />
             </CardContent>
           </Card>
         </TabsContent>

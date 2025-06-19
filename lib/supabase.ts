@@ -52,6 +52,9 @@ export const getSupabaseClient = () => {
 // Exporta o cliente Supabase para compatibilidade com código existente
 export const supabase = getSupabaseClient()
 
+// Re-export createClient for other modules that need it
+export { createClient }
+
 // Função para verificar se usuário existe no auth
 export async function checkUserExistsInAuth(userId: string): Promise<boolean> {
   try {

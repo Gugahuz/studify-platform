@@ -294,7 +294,7 @@ Crie ${count} flashcards seguindo exatamente este formato:
     const { text } = await generateText({
       model: openai("gpt-4-turbo"),
       prompt,
-      temperature: 0.2, // Menor temperatura para mais consistência
+      temperature: 0.2,
       maxTokens: 3000,
     })
 
@@ -384,15 +384,14 @@ Crie ${count} flashcards seguindo exatamente este formato:
     return validFlashcards
   } catch (error) {
     console.error("❌ Erro na geração com IA:", error)
-    console.error("🔍 Detalhes do erro:", {
-      subjectName,
-      topicName,
-      count,
-      difficulty,
-      errorMessage: error instanceof Error ? error.message : "Erro desconhecido",
-    })
 
-    // Fallback mais específico
+    // Fallback: usar dados mockados do banco quando IA falhar
+    if (error instanceof Error && error.message.includes("quota")) {
+      console.log("🔄 Cota da IA excedida, usando flashcards do banco mockado...")
+      return generateMockFlashcardsFromDatabase(subjectName, topicName, count, difficulty)
+    }
+
+    // Fallback genérico para outros erros
     return [
       createFlashcardObject(
         `fallback-${Date.now()}`,
@@ -409,172 +408,105 @@ Crie ${count} flashcards seguindo exatamente este formato:
   }
 }
 
-// Enhanced AI Generation for multiple topics with proportional distribution
-async function generateFlashcardsForMultipleTopics(
+// Função para gerar flashcards mockados quando IA falhar
+function generateMockFlashcardsFromDatabase(
   subjectName: string,
-  topicsWithCards: { id: string; name: string; cards: number }[],
+  topicName: string,
+  count: number,
   difficulty: string,
-): Promise<Flashcard[]> {
-  const allFlashcards: Flashcard[] = []
-
-  for (const topicInfo of topicsWithCards) {
-    if (topicInfo.cards > 0) {
-      try {
-        const topicFlashcards = await generateFlashcardsForSubjectTopic(
-          subjectName,
-          topicInfo.name,
-          topicInfo.cards,
-          difficulty,
-        )
-        allFlashcards.push(...topicFlashcards)
-      } catch (error) {
-        console.error(`Error generating flashcards for topic ${topicInfo.name}:`, error)
-        // Add fallback card for failed topic
-        allFlashcards.push(
-          createFlashcardObject(
-            `fallback-topic-${topicInfo.id}-${Date.now()}`,
-            `Erro no Tópico: ${topicInfo.name}`,
-            "Não foi possível gerar flashcards para este tópico.",
-            `Erro ao gerar ${topicInfo.cards} flashcards para ${topicInfo.name}. Tente novamente.`,
-            3,
-            ["erro", "topico"],
-            subjectName,
-            topicInfo.name,
-          ),
-        )
-      }
-    }
+): Flashcard[] {
+  const mockFlashcards: { [key: string]: { [key: string]: any[] } } = {
+    Medicina: {
+      Cardiologia: [
+        {
+          question: "O que é insuficiência cardíaca?",
+          answer:
+            "Condição em que o coração não consegue bombear sangue suficiente para atender às necessidades do corpo.",
+          explanation:
+            "A insuficiência cardíaca pode ser sistólica (problema de contração) ou diastólica (problema de relaxamento). É uma síndrome clínica complexa que requer manejo multidisciplinar.",
+          difficulty_level: 3,
+          tags: ["cardiologia", "insuficiencia-cardiaca", "sindrome"],
+        },
+        {
+          question: "Quais são os principais sintomas do infarto agudo do miocárdio?",
+          answer: "Dor torácica intensa, dispneia, sudorese, náuseas e irradiação para braço esquerdo.",
+          explanation:
+            "O infarto do miocárdio é uma emergência médica causada pela oclusão de artéria coronária. O diagnóstico precoce e tratamento imediato são fundamentais para o prognóstico.",
+          difficulty_level: 4,
+          tags: ["cardiologia", "infarto", "emergencia"],
+        },
+      ],
+      Neurologia: [
+        {
+          question: "O que é AVC isquêmico?",
+          answer: "Acidente vascular cerebral causado pela obstrução de uma artéria cerebral.",
+          explanation:
+            "O AVC isquêmico representa 80% dos casos de AVC. O tratamento na janela terapêutica pode incluir trombólise ou trombectomia mecânica.",
+          difficulty_level: 4,
+          tags: ["neurologia", "avc", "isquemico"],
+        },
+      ],
+    },
+    Direito: {
+      "Direito Civil": [
+        {
+          question: "O que são direitos da personalidade?",
+          answer: "Direitos inerentes à pessoa humana, como direito à vida, honra, imagem e privacidade.",
+          explanation:
+            "Os direitos da personalidade são irrenunciáveis, intransmissíveis e imprescritíveis, protegendo a dignidade da pessoa humana conforme o Código Civil.",
+          difficulty_level: 3,
+          tags: ["direito-civil", "personalidade", "dignidade"],
+        },
+      ],
+      "Direito Penal": [
+        {
+          question: "O que é legítima defesa?",
+          answer:
+            "Excludente de ilicitude que permite repelir injusta agressão atual ou iminente usando meios necessários moderadamente.",
+          explanation:
+            "A legítima defesa está prevista no art. 25 do Código Penal e exige: agressão injusta, atual ou iminente, direito próprio ou alheio, meios necessários e moderação.",
+          difficulty_level: 4,
+          tags: ["direito-penal", "legitima-defesa", "excludente"],
+        },
+      ],
+    },
   }
 
-  return allFlashcards
-}
+  const subjectMocks = mockFlashcards[subjectName] || {}
+  const topicMocks = subjectMocks[topicName] || []
 
-// AI Generation from Custom Content using GPT-4-turbo
-async function generateFromCustomContent(content: string, count: number, difficulty: string): Promise<Flashcard[]> {
-  if (!content?.trim()) {
-    throw new Error("Conteúdo personalizado é obrigatório para geração com IA.")
-  }
-
-  const difficultyMap = {
-    easy: "básico e introdutório",
-    medium: "intermediário",
-    hard: "avançado e complexo",
-    random: "variado",
-  }
-  const difficultyPrompt = difficultyMap[difficulty as keyof typeof difficultyMap] || difficultyMap.medium
-
-  const prompt = `
-Você é um especialista em educação. Analise o CONTEÚDO fornecido e crie exatamente ${count} flashcards educacionais de alta qualidade em Português do Brasil.
-
-CONTEÚDO PARA ANÁLISE:
-"""
-${content}
-"""
-
-INSTRUÇÕES:
-- Nível de dificuldade: ${difficultyPrompt}
-- Extraia os conceitos mais importantes do conteúdo
-- Crie perguntas que testem compreensão real
-- Baseie-se EXCLUSIVAMENTE no conteúdo fornecido
-
-FORMATO OBRIGATÓRIO - RETORNE APENAS UM ARRAY JSON VÁLIDO:
-[
-  {
-    "question": "Pergunta específica baseada no conteúdo",
-    "answer": "Resposta precisa extraída do conteúdo", 
-    "explanation": "Explicação detalhada com contexto (mínimo 40 palavras)",
-    "difficulty_level": 3,
-    "tags": ["tag1", "tag2", "tag3"],
-    "subject": "Matéria inferida do conteúdo",
-    "topic": "Tópico específico inferido"
-  }
-]
-
-REGRAS CRÍTICAS:
-- RETORNE APENAS O ARRAY JSON, SEM TEXTO ADICIONAL
-- NÃO use markdown, código ou explicações extras
-- Cada flashcard deve ter exatamente esses 7 campos
-
-Crie ${count} flashcards seguindo exatamente este formato:
-`
-
-  try {
-    console.log(`🤖 Gerando ${count} flashcards de conteúdo personalizado (${difficulty})`)
-
-    const { text } = await generateText({
-      model: openai("gpt-4-turbo"),
-      prompt,
-      temperature: 0.2,
-      maxTokens: 3000,
-    })
-
-    console.log("📝 Resposta bruta da IA:", text.substring(0, 200) + "...")
-
-    // Limpeza robusta do texto
-    let cleanedText = text.trim()
-    cleanedText = cleanedText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```$/i, "")
-
-    const jsonStart = cleanedText.indexOf("[")
-    const jsonEnd = cleanedText.lastIndexOf("]")
-
-    if (jsonStart === -1 || jsonEnd === -1 || jsonStart >= jsonEnd) {
-      throw new Error("Não foi possível encontrar um array JSON válido na resposta")
-    }
-
-    cleanedText = cleanedText.substring(jsonStart, jsonEnd + 1)
-
-    let parsedFlashcards
-    try {
-      parsedFlashcards = JSON.parse(cleanedText)
-    } catch (parseError) {
-      console.error("❌ Erro ao fazer parse do JSON:", parseError)
-      console.error("📄 Texto que causou erro:", cleanedText)
-      throw new Error(`JSON inválido: ${parseError instanceof Error ? parseError.message : "Erro desconhecido"}`)
-    }
-
-    if (!Array.isArray(parsedFlashcards)) {
-      throw new Error("Resposta não é um array de flashcards")
-    }
-
-    const validFlashcards = parsedFlashcards
-      .filter((card) => card && card.question && card.answer && card.explanation)
-      .slice(0, count)
-      .map((card: any, index: number) =>
-        createFlashcardObject(
-          `ai-custom-${Date.now()}-${index}`,
-          String(card.question).trim(),
-          String(card.answer).trim(),
-          String(card.explanation).trim(),
-          Math.max(1, Math.min(5, Number(card.difficulty_level) || 3)),
-          Array.isArray(card.tags) ? card.tags.slice(0, 4).map((tag) => String(tag).toLowerCase()) : ["personalizado"],
-          String(card.subject || "Conteúdo Personalizado"),
-          String(card.topic || "Tópico Personalizado"),
-          "IA Generativa (Conteúdo Personalizado)",
-        ),
-      )
-
-    if (validFlashcards.length === 0) {
-      throw new Error("Nenhum flashcard válido foi gerado")
-    }
-
-    console.log(`✅ Gerados ${validFlashcards.length} flashcards válidos de conteúdo personalizado`)
-    return validFlashcards
-  } catch (error) {
-    console.error("❌ Erro na geração com IA (conteúdo personalizado):", error)
+  if (topicMocks.length === 0) {
+    // Gerar flashcard genérico se não houver mock específico
     return [
       createFlashcardObject(
-        `fallback-custom-${Date.now()}`,
-        "Erro na Geração Personalizada",
-        "Não foi possível processar o conteúdo fornecido adequadamente.",
-        `Houve um problema ao analisar o conteúdo personalizado fornecido. Verifique se o texto está bem formatado e tente novamente. O sistema utiliza GPT-4-turbo para análise inteligente do conteúdo. Erro: ${error instanceof Error ? error.message : "Desconhecido"}`,
+        `mock-${Date.now()}`,
+        `Conceitos de ${topicName}`,
+        `${topicName} é uma área importante de ${subjectName}.`,
+        `Este é um flashcard gerado automaticamente para ${topicName} em ${subjectName}. Para conteúdo mais específico, a geração com IA estará disponível quando a cota for renovada.`,
         3,
-        ["erro", "personalizado", "conteudo"],
-        "Sistema",
-        "Erro de Processamento",
-        "Sistema de Fallback",
+        [subjectName.toLowerCase(), topicName.toLowerCase()],
+        subjectName,
+        topicName,
+        "Banco Mockado",
       ),
     ]
   }
+
+  // Retornar flashcards mockados disponíveis
+  const selectedMocks = topicMocks.slice(0, count)
+  return selectedMocks.map((mock, index) =>
+    createFlashcardObject(
+      `mock-${topicName}-${Date.now()}-${index}`,
+      mock.question,
+      mock.answer,
+      mock.explanation,
+      mock.difficulty_level,
+      mock.tags,
+      subjectName,
+      topicName,
+      "Banco Mockado",
+    ),
+  )
 }
 
 // Generation from "Database" (Mock or AI Fallback) - Updated for multiple topics
@@ -1565,5 +1497,187 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 },
     )
+  }
+}
+
+async function generateFlashcardsForMultipleTopics(
+  subjectName: string,
+  topicsWithCards: { id: string; name: string; cards: number }[],
+  difficulty: string,
+): Promise<Flashcard[]> {
+  let allFlashcards: Flashcard[] = []
+
+  for (const topic of topicsWithCards) {
+    if (topic.cards > 0) {
+      try {
+        const flashcards = await generateFlashcardsForSubjectTopic(subjectName, topic.name, topic.cards, difficulty)
+        allFlashcards = allFlashcards.concat(flashcards)
+      } catch (error) {
+        console.error(`Erro ao gerar flashcards para o tópico ${topic.name}:`, error)
+        // Tratar o erro conforme necessário (log, fallback, etc.)
+      }
+    }
+  }
+
+  return allFlashcards
+}
+
+async function generateFromCustomContent(
+  customContent: string | undefined,
+  numberOfFlashcards: number,
+  difficulty: string,
+): Promise<Flashcard[]> {
+  if (!customContent) {
+    throw new Error("Conteúdo customizado é obrigatório para geração com IA customizada.")
+  }
+
+  const difficultyMap = {
+    easy: "básico e introdutório (nível 1-2)",
+    medium: "intermediário (nível 3)",
+    hard: "avançado e complexo (nível 4-5)",
+    random: "variado (níveis 1-5 aleatoriamente)",
+  }
+  const difficultyPrompt = difficultyMap[difficulty as keyof typeof difficultyMap] || difficultyMap.medium
+
+  const prompt = `
+Com base no seguinte conteúdo fornecido pelo usuário, crie exatamente ${numberOfFlashcards} flashcards educacionais de alta qualidade em Português do Brasil.
+
+CONTEÚDO FORNECIDO:
+${customContent}
+
+INSTRUÇÕES ESPECÍFICAS:
+- Nível de Dificuldade: ${difficultyPrompt}
+- IMPORTANTE: Todos os flashcards devem seguir o nível de dificuldade "${difficulty}" selecionado pelo usuário
+- Cada flashcard deve ser específico e relevante para o conteúdo fornecido
+
+FORMATO OBRIGATÓRIO - RETORNE APENAS UM ARRAY JSON VÁLIDO:
+[
+  {
+    "question": "Pergunta clara e específica sobre o conteúdo",
+    "answer": "Resposta precisa e educativa",
+    "explanation": "Explicação detalhada com contexto e exemplos (mínimo 40 palavras)",
+    "difficulty_level": 3,
+    "tags": ["tag1", "tag2", "tag3"]
+  }
+]
+
+REGRAS CRÍTICAS:
+- RETORNE APENAS O ARRAY JSON, SEM TEXTO ADICIONAL
+- NÃO use markdown, código ou explicações extras
+- Cada flashcard deve ter exatamente esses 5 campos
+- difficulty_level deve ser um número de 1 a 5
+- tags deve ser um array de strings
+
+Crie ${numberOfFlashcards} flashcards seguindo exatamente este formato:
+`
+
+  try {
+    console.log(`🤖 Gerando ${numberOfFlashcards} flashcards com conteúdo customizado (${difficulty})`)
+
+    const { text } = await generateText({
+      model: openai("gpt-4-turbo"),
+      prompt,
+      temperature: 0.2,
+      maxTokens: 3000,
+    })
+
+    console.log("📝 Resposta bruta da IA:", text.substring(0, 200) + "...")
+
+    // Limpeza mais robusta do texto
+    let cleanedText = text.trim()
+
+    // Remove possíveis markdown code blocks
+    cleanedText = cleanedText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```$/i, "")
+
+    // Remove texto antes e depois do JSON
+    const jsonStart = cleanedText.indexOf("[")
+    const jsonEnd = cleanedText.lastIndexOf("]")
+
+    if (jsonStart === -1 || jsonEnd === -1 || jsonStart >= jsonEnd) {
+      throw new Error("Não foi possível encontrar um array JSON válido na resposta")
+    }
+
+    cleanedText = cleanedText.substring(jsonStart, jsonEnd + 1)
+
+    console.log("🧹 Texto limpo:", cleanedText.substring(0, 200) + "...")
+
+    let parsedFlashcards
+    try {
+      parsedFlashcards = JSON.parse(cleanedText)
+    } catch (parseError) {
+      console.error("❌ Erro ao fazer parse do JSON:", parseError)
+      console.error("📄 Texto que causou erro:", cleanedText)
+      throw new Error(`JSON inválido: ${parseError instanceof Error ? parseError.message : "Erro desconhecido"}`)
+    }
+
+    if (!Array.isArray(parsedFlashcards)) {
+      throw new Error("Resposta não é um array de flashcards")
+    }
+
+    if (parsedFlashcards.length === 0) {
+      throw new Error("Array de flashcards está vazio")
+    }
+
+    // Validação e limpeza dos flashcards
+    const validFlashcards = parsedFlashcards
+      .filter((card, index) => {
+        const isValid =
+          card &&
+          typeof card.question === "string" &&
+          card.question.trim() &&
+          typeof card.answer === "string" &&
+          card.answer.trim() &&
+          typeof card.explanation === "string" &&
+          card.explanation.trim()
+
+        if (!isValid) {
+          console.warn(`⚠️ Flashcard ${index} inválido:`, card)
+        }
+        return isValid
+      })
+      .slice(0, numberOfFlashcards) // Garante o número correto
+      .map((card: any, index: number) => {
+        let adjustedDifficulty = Math.max(1, Math.min(5, Number(card.difficulty_level) || 3))
+
+        // Ajustar dificuldade baseada na seleção do usuário
+        if (difficulty === "easy" && adjustedDifficulty > 2) adjustedDifficulty = Math.random() > 0.5 ? 1 : 2
+        if (difficulty === "medium" && (adjustedDifficulty < 2 || adjustedDifficulty > 4)) adjustedDifficulty = 3
+        if (difficulty === "hard" && adjustedDifficulty < 4) adjustedDifficulty = Math.random() > 0.5 ? 4 : 5
+
+        return createFlashcardObject(
+          `ai-custom-${Date.now()}-${index}`,
+          card.question.trim(),
+          card.answer.trim(),
+          card.explanation.trim(),
+          adjustedDifficulty,
+          Array.isArray(card.tags) ? card.tags.slice(0, 4).map((tag) => String(tag).toLowerCase()) : ["custom", "ai"],
+          "Custom",
+          "Custom",
+          "IA Generativa (GPT-4-turbo)",
+        )
+      })
+
+    if (validFlashcards.length === 0) {
+      throw new Error("Nenhum flashcard válido foi gerado após validação")
+    }
+
+    console.log(`✅ Gerados ${validFlashcards.length} flashcards válidos com conteúdo customizado`)
+    return validFlashcards
+  } catch (error) {
+    console.error("❌ Erro na geração com IA (custom):", error)
+
+    return [
+      createFlashcardObject(
+        `fallback-custom-${Date.now()}`,
+        `Erro ao Gerar Flashcards (Custom)`,
+        "Ocorreu um erro ao gerar flashcards com o conteúdo fornecido.",
+        `Detalhe: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+        3,
+        ["erro", "custom"],
+        "Custom",
+        "Erro Interno",
+        "Sistema de Fallback",
+      ),
+    ]
   }
 }
