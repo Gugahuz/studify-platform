@@ -26,8 +26,16 @@ export type LoginLog = {
 }
 
 // Cria o cliente Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl) {
+  throw new Error("Missing env.NEXT_PUBLIC_SUPABASE_URL")
+}
+
+if (!supabaseAnonKey) {
+  throw new Error("Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY")
+}
 
 console.log("🔧 Configuração Supabase:")
 console.log("📍 URL:", supabaseUrl)
@@ -303,4 +311,9 @@ export async function testSupabaseConnection() {
     console.error("❌ Exceção ao testar conexão:", error)
     return false
   }
+}
+
+// Export a function to create a new client (for server-side usage)
+export function createNewClient() {
+  return createClient(supabaseUrl!, supabaseAnonKey!)
 }
