@@ -7,6 +7,7 @@ import { UpcomingEvents } from "@/components/upcoming-events"
 import { QuickActions } from "@/components/quick-actions"
 import { useUserData } from "@/hooks/use-user-data"
 import { getCurrentDate, getGreeting } from "@/utils/date-helpers"
+import { UserStatsSimple } from "@/components/user-stats-simple"
 
 export default function Dashboard() {
   const { userProfile, isLoading } = useUserData()
@@ -45,6 +46,7 @@ export default function Dashboard() {
         </div>
         <div className="space-y-6">
           <UpcomingEvents />
+          <UserStatsSimple />
           <QuickActions />
         </div>
       </div>

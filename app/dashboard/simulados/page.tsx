@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { SimpleMockExamDashboard } from "@/components/mock-exams/simple-mock-exam-dashboard"
 import { SimpleMockExamInterface } from "@/components/mock-exams/simple-mock-exam-interface"
-import { SimpleMockExamResults } from "@/components/mock-exams/simple-mock-exam-results"
+import { MockExamResultsWrapper } from "@/components/mock-exams/mock-exam-results-wrapper"
 import { SimpleMockExamHistory } from "@/components/mock-exams/simple-mock-exam-history"
 import { QuestionReview } from "@/components/mock-exams/question-review"
 import type { MockExamTemplate, MockExamAttempt } from "@/lib/mock-exam-data"
@@ -67,7 +67,7 @@ export default function SimuladoPage() {
 
     case "results":
       return examResults ? (
-        <SimpleMockExamResults
+        <MockExamResultsWrapper
           attempt={examResults}
           onRetake={handleRetakeExam}
           onViewHistory={handleViewHistory}
