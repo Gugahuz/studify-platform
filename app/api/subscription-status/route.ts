@@ -1,48 +1,50 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
 
-export const dynamic = "force-dynamic"
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const userId = req.nextUrl.searchParams.get("userId")
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("userId")
 
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
-    const { data: subscription, error } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
+    console.log("🔍 Checking is_premium for user:", userId)
+
+    // Buscar na tabela PROFILES a coluna is_premium
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("is_premium")
+      .eq("id", userId)
       .single()
 
-    if (error && error.code !== "PGRST116") {
-      console.error("Error fetching subscription:", error)
-      return NextResponse.json({ error: "Failed to fetch subscription" }, { status: 500 })
+    if (profileError) {
+      console.error("❌ Error fetching profile:", profileError)
+      return NextResponse.json({ isPremium: false }, { status: 200 })
     }
 
-    // Se não encontrou assinatura
-    if (!subscription) {
-      return NextResponse.json({ status: "inactive", subscription: null })
-    }
+    console.log("📊 Profile data:", profile)
 
-    // Verificar se a assinatura está ativa
-    const now = new Date()
-    const endDate = new Date(subscription.current_period_end)
-    const isActive = endDate > now && subscription.status !== "canceled"
+    // Verificar se is_premium é TRUE ou FALSE
+    const isPremium = profile?.is_premium === true
+
+    console.log("✅ Premium status:", {
+      isPremium,
+      is_premium_value: profile?.is_premium,
+    })
 
     return NextResponse.json({
-      status: isActive ? "active" : "inactive",
+      isPremium,
       subscription: {
-        ...subscription,
-        is_active: isActive,
+        plan_type: isPremium ? "premium" : "free",
+        status: isPremium ? "active" : "inactive",
       },
     })
   } catch (error) {
-    console.error("Error getting subscription status:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("❌ Subscription status error:", error)
+    return NextResponse.json({ isPremium: false }, { status: 200 })
   }
 }

@@ -28,8 +28,8 @@ export function QuickActions() {
     {
       title: "Enviar questão",
       icon: Upload,
-      href: "/dashboard/assistente/upload",
-      available: false,
+      href: "/dashboard/assistente/resolver-questoes",
+      available: true,
     },
   ]
 
